@@ -1,0 +1,946 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Coach E2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Caveat:wght@600;700&display=swap">
+<style>
+/* Mise en page : une « copie d'examen » numérique — barre d'onglets, colonne de lecture, questions sur papier réglé ; surligneur pour les verbes d'action, stylo rouge pour le corrigé. */
+:root{
+  --paper:#f2f4f8; --card:#ffffff; --ink:#18264a; --ink-2:#4b5878; --ink-3:#7d88a3;
+  --rule:#d5dceb; --rule-strong:#b7c2d9; --blue:#2846c4; --blue-soft:#e4e9fb;
+  --red:#c7372c; --red-soft:#fbe9e7; --hl:#f6df4c; --hl-ink:#1f1a05;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --warn:#a85f00; --warn-soft:#fdf0dc;
+  --shadow:0 1px 2px rgba(24,38,74,.06),0 4px 14px rgba(24,38,74,.06);
+  --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,-apple-system,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --f-hand:"Caveat","Bradley Hand","Segoe Print",cursive;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0f1422; --card:#171e30; --ink:#e7ebf6; --ink-2:#aab4cc; --ink-3:#7a85a0;
+  --rule:#273149; --rule-strong:#36425f; --blue:#8ea4ff; --blue-soft:#202c52;
+  --red:#ff7a6e; --red-soft:#3a1d1c; --hl:#e8cf3a; --hl-ink:#1f1a05;
+  --ok:#5fd39a; --ok-soft:#17342a; --warn:#f0b35a; --warn-soft:#3a2a12;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1422; --card:#171e30; --ink:#e7ebf6; --ink-2:#aab4cc; --ink-3:#7a85a0;
+  --rule:#273149; --rule-strong:#36425f; --blue:#8ea4ff; --blue-soft:#202c52;
+  --red:#ff7a6e; --red-soft:#3a1d1c; --hl:#e8cf3a; --hl-ink:#1f1a05;
+  --ok:#5fd39a; --ok-soft:#17342a; --warn:#f0b35a; --warn-soft:#3a2a12;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+h1,h2,h3,h4{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+p{margin:0}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px}
+
+/* En-tête */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
+.top .wrap{display:flex;align-items:center;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand b{font-family:var(--f-display);font-weight:800;font-size:1.35rem;letter-spacing:-.01em}
+.brand b span{background:var(--hl);color:var(--hl-ink);padding:0 .18em;border-radius:3px}
+.brand small{color:var(--ink-3);font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;max-width:100%;scrollbar-width:none}
+nav.tabs a{white-space:nowrap;text-decoration:none;color:var(--ink-2);font-weight:700;font-size:.92rem;padding:7px 12px;border-radius:999px}
+nav.tabs a:hover{background:var(--blue-soft);color:var(--ink)}
+nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--paper)}
+
+main{padding-block:28px 64px}
+section[data-view]{display:grid;gap:28px}
+section[data-view] > *{min-width:0}
+.lede{color:var(--ink-2);max-width:68ch}
+.eyebrow{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.h1{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;letter-spacing:-.02em}
+.h2{font-size:1.4rem;font-weight:700}
+.hl{background:linear-gradient(transparent 12%,var(--hl) 12%,var(--hl) 88%,transparent 88%);color:var(--hl-ink);padding:0 .2em;border-radius:2px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hand{font-family:var(--f-hand);color:var(--red);font-weight:700}
+.muted{color:var(--ink-3)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* Boutons */
+.btn{border:1px solid var(--rule-strong);background:var(--card);color:var(--ink);text-decoration:none;border-radius:10px;padding:8px 14px;font-weight:700;font-size:.92rem;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.red{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,transparent)}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:.84rem;border-radius:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* Accueil */
+.hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px;align-items:center}
+.exam-card{background:var(--card);border:1px solid var(--rule);border-radius:16px;box-shadow:var(--shadow);padding:20px;display:grid;gap:14px}
+.timeline{display:grid;grid-template-columns:15fr 150fr 15fr;border-radius:8px;overflow:hidden;border:1px solid var(--rule-strong);font-size:.8rem;font-weight:700}
+.timeline div{padding:8px 6px;text-align:center}
+.timeline div:nth-child(1),.timeline div:nth-child(3){background:var(--hl);color:var(--hl-ink)}
+.timeline div:nth-child(2){background:var(--blue-soft)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fact{border-top:2px solid var(--ink);padding-top:6px}
+.fact b{font-family:var(--f-display);font-size:1.5rem;display:block}
+.fact span{font-size:.82rem;color:var(--ink-2)}
+.modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.module{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:16px;text-decoration:none;color:inherit;display:grid;gap:6px;align-content:start}
+.module:hover{border-color:var(--ink-2)}
+.module h3{font-size:1.1rem}
+.module p{color:var(--ink-2);font-size:.92rem}
+.verbs{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.verb{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:12px 14px;display:grid;gap:4px}
+.verb p{font-size:.92rem;color:var(--ink-2)}
+.crit{columns:2 260px;column-gap:28px;padding-left:1.1em;margin:0}
+.crit li{margin-bottom:6px;break-inside:avoid}
+
+/* Sujets */
+.grid-sujets{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.sujet{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:16px;display:grid;gap:8px;text-align:left;align-content:start}
+.sujet:hover{border-color:var(--ink-2);box-shadow:var(--shadow)}
+.sujet h3{font-size:1.2rem}
+.sujet p{font-size:.9rem;color:var(--ink-2)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:.72rem;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:999px;background:var(--blue-soft);color:var(--ink)}
+.tag.a{background:var(--warn-soft);color:var(--warn)}
+.tag.lock{background:var(--red-soft);color:var(--red)}
+.tag.open{background:var(--ok-soft);color:var(--ok)}
+.lockbox{border:1.5px dashed color-mix(in srgb,var(--red) 55%,transparent);border-radius:12px;padding:10px 14px;font-size:.92rem;color:var(--ink-2)}
+.bar{height:6px;border-radius:99px;background:var(--rule);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);width:0}
+
+/* Vue d'un sujet */
+.case-head{display:grid;gap:12px}
+.case-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:28px;align-items:start}
+.outline{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);display:grid;gap:4px;font-size:.88rem;max-height:calc(100vh - 100px);overflow:auto}
+.outline a{text-decoration:none;color:var(--ink-2);padding:4px 8px;border-radius:6px;display:flex;gap:8px;align-items:center}
+.outline a:hover{background:var(--blue-soft);color:var(--ink)}
+.outline .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-3);flex:none}
+.outline .dot.done{background:var(--ok);border-color:var(--ok)}
+.outline .mt{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700;margin-top:10px;padding-left:8px}
+.ctx{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:16px;display:grid;gap:10px}
+.ctx dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 14px;margin:0;font-size:.92rem}
+.ctx dt{color:var(--ink-3)}
+.ctx dd{margin:0}
+details.data{border-top:1px dashed var(--rule-strong);padding-top:8px}
+details.data summary{cursor:pointer;font-weight:700;color:var(--blue)}
+details.data ul{margin:8px 0 0;padding-left:1.1em;display:grid;gap:4px;font-size:.92rem}
+.mode-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:10px 14px}
+.seg{display:inline-flex;border:1px solid var(--rule-strong);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 12px;font-weight:700;font-size:.88rem;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.clock{font-family:var(--f-mono);font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+.clock.low{color:var(--red)}
+.mission-title{font-size:1.15rem;font-weight:700;padding-top:6px;border-top:2px solid var(--ink)}
+.q{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:16px;display:grid;gap:12px;scroll-margin-top:90px}
+.q-head{display:flex;gap:12px;align-items:flex-start}
+.q-num{font-family:var(--f-display);font-weight:800;font-size:1.15rem;min-width:2.6em}
+.q-txt{flex:1;min-width:0}
+.q-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;color:var(--ink-3)}
+.q-meta span{display:inline-flex;gap:4px;align-items:center}
+textarea.copy{width:100%;min-height:150px;resize:vertical;border:1px solid var(--rule-strong);border-radius:10px;padding:6px 12px;line-height:28px;
+  background:var(--card) repeating-linear-gradient(to bottom,transparent 0,transparent 27px,var(--rule) 27px,var(--rule) 28px);background-attachment:local;background-position:0 6px;color:var(--ink)}
+.tip{background:var(--blue-soft);border-radius:10px;padding:10px 12px;font-size:.92rem}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.field{display:grid;gap:4px;font-size:.88rem}
+.field label{color:var(--ink-2)}
+.field input{font-size:16px;border:1px solid var(--rule-strong);border-radius:8px;padding:7px 10px;background:var(--card);font-family:var(--f-mono);font-variant-numeric:tabular-nums;width:100%}
+.field input.ok{border-color:var(--ok);background:var(--ok-soft)}
+.field input.ko{border-color:var(--red);background:var(--red-soft)}
+.field .exp{font-size:.8rem;font-family:var(--f-mono);color:var(--red)}
+.picks{display:grid;gap:6px}
+.pick{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:10px;padding:8px 10px;font-size:.93rem}
+.pick input{margin-top:4px;accent-color:var(--ink)}
+.pick.good{border-color:var(--ok);background:var(--ok-soft)}
+.pick.bad{border-color:var(--red);background:var(--red-soft)}
+.pick.opt{border-style:dashed}
+.pick small{display:block;color:var(--ink-2);font-size:.82rem}
+.corr{border:1.5px solid color-mix(in srgb,var(--red) 55%,transparent);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:color-mix(in srgb,var(--red-soft) 55%,var(--card))}
+.corr h4{font-family:var(--f-hand);color:var(--red);font-size:1.6rem;font-weight:700;line-height:1}
+.corr ul{margin:0;padding-left:0;list-style:none;display:grid;gap:6px}
+.corr li label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.corr li input{margin-top:5px;accent-color:var(--red)}
+.corr .note{font-size:.82rem;color:var(--ink-2)}
+.score-chip{font-weight:700;font-size:.82rem;padding:2px 9px;border-radius:999px;background:var(--rule);color:var(--ink)}
+.score-chip.ok{background:var(--ok-soft);color:var(--ok)}
+.score-chip.mid{background:var(--warn-soft);color:var(--warn)}
+.score-chip.ko{background:var(--red-soft);color:var(--red)}
+.bilan{background:var(--card);border:2px solid var(--ink);border-radius:16px;padding:18px;display:grid;gap:10px}
+
+/* Calculs */
+.calc-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:16px;display:grid;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--rule-strong);background:var(--card);border-radius:999px;padding:4px 11px;font-size:.84rem;font-weight:700;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.exo{display:grid;gap:12px}
+.exo .ctxline{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.exo .enonce{font-size:1.08rem}
+.answer-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.answer-row input{font-family:var(--f-mono);font-size:1.1rem;border:1.5px solid var(--rule-strong);border-radius:10px;padding:8px 12px;width:200px;max-width:100%;background:var(--card)}
+.steps{font-family:var(--f-mono);font-size:.9rem;display:grid;gap:4px;background:var(--paper);border-radius:10px;padding:10px 12px;overflow-x:auto}
+.feedback{font-weight:700}
+.feedback.ok{color:var(--ok)} .feedback.ko{color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stats b{font-family:var(--f-display);font-size:1.6rem;display:block}
+.stats span{font-size:.75rem;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+table.formules{width:100%;border-collapse:collapse;font-size:.86rem}
+table.formules td{border-top:1px solid var(--rule);padding:6px 4px;vertical-align:top}
+table.formules td:first-child{font-weight:700;width:42%}
+table.formules td:last-child{font-family:var(--f-mono);font-size:.8rem}
+
+/* Ateliers */
+.ateliers-nav{display:flex;flex-wrap:wrap;gap:6px}
+.order-list{display:grid;gap:6px;list-style:none;padding:0;margin:0;counter-reset:st}
+.order-list li{display:flex;align-items:center;gap:8px;border:1px solid var(--rule-strong);background:var(--card);border-radius:10px;padding:8px 10px}
+.order-list li::before{counter-increment:st;content:counter(st);font-family:var(--f-display);font-weight:800;min-width:1.4em}
+.order-list li span{flex:1;min-width:0}
+.order-list li.good{border-color:var(--ok);background:var(--ok-soft)}
+.order-list li.bad{border-color:var(--red);background:var(--red-soft)}
+.order-list li small{display:block;color:var(--ink-2);font-style:italic}
+.mv{border:1px solid var(--rule-strong);background:var(--paper);border-radius:6px;width:30px;height:30px;font-weight:700;line-height:1}
+.quiz-card{display:grid;gap:12px}
+.quote{font-size:1.1rem;border-left:3px solid var(--ink);padding:4px 0 4px 14px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts button{border:1px solid var(--rule-strong);background:var(--card);border-radius:10px;padding:8px 12px;font-weight:700;text-align:left}
+.opts button.good{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}
+.opts button.bad{border-color:var(--red);background:var(--red-soft);color:var(--red)}
+.explain{background:var(--paper);border-radius:10px;padding:10px 12px;font-size:.95rem}
+.swot-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;font-size:.78rem;text-align:center;font-weight:700}
+.swot-grid div{padding:6px;border-radius:6px;background:var(--paper)}
+.sms-phone{max-width:360px;border:1px solid var(--rule-strong);border-radius:22px;padding:14px;background:var(--paper);display:grid;gap:8px}
+.bubble{background:var(--card);border:1px solid var(--rule);border-radius:16px 16px 16px 4px;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;min-height:44px}
+.checks{list-style:none;padding:0;margin:0;display:grid;gap:4px;font-size:.92rem}
+.checks li::before{content:"○ ";color:var(--ink-3)}
+.checks li.on::before{content:"● ";color:var(--ok)}
+.checks li.on{color:var(--ok)}
+.fc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.fc-field{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--rule);border-radius:10px;padding:8px 10px;font-size:.92rem;background:var(--card)}
+.fc-field.good{border-color:var(--ok);background:var(--ok-soft)}
+.fc-field.bad{border-color:var(--red);background:var(--red-soft)}
+.fc-field.miss{border-color:var(--warn);background:var(--warn-soft)}
+
+/* Notions */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.flash{perspective:900px;min-height:170px;border:0;background:transparent;padding:0;text-align:left}
+.flash .in{position:relative;width:100%;height:100%;min-height:170px;transition:transform .45s;transform-style:preserve-3d}
+.flash.flip .in{transform:rotateY(180deg)}
+.flash .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:14px;border:1px solid var(--rule);padding:14px;display:grid;align-content:space-between;gap:8px;background:var(--card);overflow:auto}
+.flash .back{transform:rotateY(180deg);background:var(--ink);color:var(--paper);border-color:var(--ink);font-size:.94rem}
+.flash .face h3{font-size:1.15rem}
+.flash .known{font-size:.75rem;font-weight:700;color:var(--ok)}
+@media (prefers-reduced-motion: reduce){.flash .in{transition:none}}
+
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:700;font-size:.92rem;z-index:50;box-shadow:var(--shadow)}
+
+@media (max-width:860px){
+  .hero,.case-layout,.calc-layout{grid-template-columns:minmax(0,1fr)}
+  .outline{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:4px}
+  .outline .mt{width:100%}
+}
+@media (max-width:520px){
+  .facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .q-head{flex-direction:column;gap:4px}
+  .brand small{display:none}
+}
+
+/* Téléphone : en-tête compact, onglets visibles en entier, pas de zoom iOS sur les champs */
+@media (max-width:640px){
+  .top .wrap{gap:4px 10px;padding-block:6px}
+  .brand b{font-size:1.15rem}
+  nav.tabs{width:100%;justify-content:space-between;gap:2px}
+  nav.tabs a{padding:6px 9px;font-size:.84rem}
+  textarea.copy,.answer-row input,#sms-in{font-size:16px}
+  #calc-types,#at-nav,#fc-filter{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;min-width:0;max-width:100%}
+  #calc-types .chip,#at-nav .chip,#fc-filter .chip{flex:none}
+}
+/* Paysage sur téléphone : l'en-tête ne reste plus collé en haut, et tient sur une ligne */
+@media (max-height:500px){
+  .top{position:static}
+  .top .wrap{flex-wrap:nowrap;padding-block:6px}
+  .brand small{display:none}
+  nav.tabs{width:auto}
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><b>Coach <span>E2</span></b><small>Bac Pro MCV · Analyse et résolution de situations professionnelles</small></div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#methode" data-tab="methode">Méthode</a>
+      <a href="#sujets" data-tab="sujets">Sujets</a>
+      <a href="#calculs" data-tab="calculs">Calculs</a>
+      <a href="#ateliers" data-tab="ateliers">Ateliers</a>
+      <a href="#notions" data-tab="notions">Notions</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============ MÉTHODE ============ -->
+<section data-view="methode">
+  <div class="hero">
+    <div style="display:grid;gap:14px">
+      <p class="eyebrow">Épreuve écrite · Unité U2 · Bloc BC4B</p>
+      <h1 class="h1">3 heures pour <span class="hl">analyser</span>, <span class="hl">calculer</span> et <span class="hl">proposer</span> comme un commercial.</h1>
+      <p class="lede">Entraîne-toi sur 7 vraies études de cas, révise les calculs commerciaux qui tombent à chaque session et muscle les écrits types : plan d’appel, argumentaire, fiche contact, SMS, publication. Garde le sujet papier à côté de toi : l’appli te pose les questions, chronomètre et corrige.</p>
+      <div class="row"><a class="btn primary" href="#sujets">Choisir une étude de cas</a><a class="btn" href="#calculs">Faire 10 calculs</a></div>
+    </div>
+    <div class="exam-card">
+      <div class="facts">
+        <div class="fact"><b>3 h</b><span>durée</span></div>
+        <div class="fact"><b>4</b><span>coefficient</span></div>
+        <div class="fact"><b>2</b><span>missions en général</span></div>
+      </div>
+      <div style="display:grid;gap:6px">
+        <p class="eyebrow">Gestion du temps conseillée</p>
+        <div class="timeline" role="img" aria-label="15 minutes de lecture, 2 h 30 de traitement, 15 minutes de relecture"><div>15′</div><div>2 h 30 de traitement</div><div>15′</div></div>
+        <p class="muted" style="font-size:.84rem">Lecture complète du sujet · traitement des missions · relecture (calculs, orthographe, annexes rendues).</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;gap:12px">
+    <h2 class="h2">Tes outils d’entraînement</h2>
+    <div class="modules">
+      <a class="module" href="#sujets"><p class="eyebrow">7 sujets</p><h3>Études de cas</h3><p>Mode entraînement avec corrigé question par question, ou examen blanc chronométré de 3 h.</p></a>
+      <a class="module" href="#calculs"><p class="eyebrow">Exercices illimités</p><h3>Calculs commerciaux</h3><p>Prix, marges, taux, rentabilité d’un salon, ratios de prospection : correction détaillée étape par étape.</p></a>
+      <a class="module" href="#ateliers"><p class="eyebrow">6 ateliers</p><h3>Écrits professionnels</h3><p>Plan d’appel, mobiles d’achat, objections, forces / menaces, SMS marketing, fiche contact.</p></a>
+      <a class="module" href="#notions"><p class="eyebrow">48 cartes</p><h3>Notions clés</h3><p>Le vocabulaire du commercial à connaître par cœur, en cartes à retourner.</p></a>
+    </div>
+  </div>
+
+  <div style="display:grid;gap:12px">
+    <h2 class="h2">Les verbes d’action : ce que le correcteur attend</h2>
+    <p class="lede">Surligne le verbe de chaque question avant de répondre. C’est lui qui fixe la forme de ta réponse.</p>
+    <div class="verbs" id="verbs"></div>
+  </div>
+
+  <div style="display:grid;gap:12px">
+    <h2 class="h2">Sur quoi tu es évalué(e)</h2>
+    <ul class="crit">
+      <li>Pertinence de l’utilisation du système d’information commercial</li>
+      <li>Cohérence du choix de la cible avec le contexte</li>
+      <li>Adéquation de l’action avec les moyens humains, financiers et matériels</li>
+      <li>Adaptation des techniques et outils de prospection</li>
+      <li>Efficacité de la communication commerciale à distance et en face-à-face</li>
+      <li>Qualité de la mise à jour et de l’exploitation des données</li>
+      <li>Pertinence de l’analyse des résultats</li>
+      <li>Réalisme des actions correctives proposées</li>
+      <li>Qualité du compte rendu professionnel</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ SUJETS ============ -->
+<section data-view="sujets" hidden>
+  <div id="sujets-list" style="display:grid;gap:18px">
+    <div style="display:grid;gap:8px">
+      <p class="eyebrow">Études de cas</p>
+      <h1 class="h1">Choisis un sujet</h1>
+      <p class="lede">Chaque sujet reprend les questions officielles. Tes réponses sont enregistrées dans ce navigateur. Les ressources ne sont pas recopiées ici : travaille avec le sujet papier, l’appli te rappelle seulement les données clés.</p>
+    </div>
+    <div class="grid-sujets" id="grid-sujets"></div>
+  </div>
+  <div id="sujet-view" hidden></div>
+</section>
+
+<!-- ============ CALCULS ============ -->
+<section data-view="calculs" hidden>
+  <div style="display:grid;gap:8px">
+    <p class="eyebrow">Atelier calculs</p>
+    <h1 class="h1">Calculs commerciaux</h1>
+    <p class="lede">Des exercices générés à l’infini, dans le contexte des sujets d’examen. Arrondis à 2 décimales, comme dans les consignes. Tu peux taper une virgule ou un point.</p>
+  </div>
+  <div class="calc-layout">
+    <div class="panel">
+      <div class="chips" id="calc-types"></div>
+      <div class="exo" id="exo"></div>
+    </div>
+    <div style="display:grid;gap:14px">
+      <div class="panel">
+        <div class="stats"><div><b id="st-ok">0</b><span>Réussis</span></div><div><b id="st-total">0</b><span>Tentés</span></div><div><b id="st-streak">0</b><span>Série</span></div></div>
+      </div>
+      <div class="panel">
+        <h3 class="h2" style="font-size:1.1rem">Formulaire</h3>
+        <table class="formules" id="formules"></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ATELIERS ============ -->
+<section data-view="ateliers" hidden>
+  <div style="display:grid;gap:8px">
+    <p class="eyebrow">Ateliers</p>
+    <h1 class="h1">Écrits et outils du commercial</h1>
+    <p class="lede">Les mêmes productions reviennent dans presque tous les sujets. Entraîne-les ici une par une.</p>
+  </div>
+  <div class="ateliers-nav chips" id="at-nav"></div>
+  <div class="panel" id="atelier"></div>
+</section>
+
+<!-- ============ NOTIONS ============ -->
+<section data-view="notions" hidden>
+  <div style="display:grid;gap:8px">
+    <p class="eyebrow">Notions</p>
+    <h1 class="h1">Le vocabulaire à maîtriser</h1>
+    <p class="lede">Clique sur une carte pour la retourner. Marque celles que tu sais pour te concentrer sur les autres.</p>
+  </div>
+  <div class="row"><div class="chips" id="fc-filter"></div><span class="muted" id="fc-count"></span></div>
+  <div class="cards" id="cards"></div>
+</section>
+
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const SUJETS = [{"id":"goudale","nom":"Brasserie GOUDALE","annee":"Mai 2025","option":"Option B","secteur":"Brasserie · bière sans alcool","lieu":"Arques (62)","role":"Commerciale (Camille Laplume)","resp":"Damien Panache, chef des ventes","pitch":"Lancer un fût haut de gamme de bière sans alcool à la cerise auprès des CHR, puis organiser et évaluer une soirée « Dry January ».","contexte":"Brasserie de 160 collaborateurs, 120 recettes, 1,9 million d’hl/an. Deux produits sans alcool déjà lancés. Cible : Cafés, Hôtels, Restaurants (CHR).","donnees":["Marché sans alcool 2022 : CA +16,2 %, volumes −11,8 %, 5,7 % du marché de la bière ; premiumisation. KRONENBOURG ≈ 57-60 % de PDM, HEINEKEN 15,6 %, AB INBEV 5,6 %.","Fût cerise : bio, cerise griotte origine France, 0 % alcool, édition limitée, fûts inox 30/50/100 L, livré sous 2 jours, raccord universel. Prix de lancement : 1 € HT le litre.","Phoning : 200 appels prévus ; 120 aboutis ; 84 argumentés ; 42 RDV ; 18 ventes. Objectifs : 40 RDV, 20 ventes.","Soirée : 300 e-invitations (0,30 €), 50 présents, 3 goodies chacun (shaker 6,07 €, stylo USB 5,88 €, tote bag 0,59 €), 5 commerciaux de 19 h à 23 h à 20 €/h, traiteur 3 000 €, orchestre 500 €, boissons 350 €, signalétique 159 €.","Ventes de la soirée : 50 fûts de 100 L, 80 fûts de 50 L, 20 fûts de 30 L. Taux de marque 60 %. Objectifs : CA 9 000 € HT, rentabilité ≥ 1 000 €."],"missions":[{"titre":"Mission 1 — Participer à une opération de prospection","qs":[{"n":"1.1","verbe":"Relever","txt":"dans un tableau, trois menaces et trois opportunités du marché de la bière sans alcool en France.","res":"R1 à R6","t":10,"type":"open","tip":"Menaces et opportunités viennent de l’environnement EXTERNE (marché, concurrence, tendances), pas de l’entreprise.","corr":[]},{"n":"1.2","verbe":"Rédiger","txt":"une note synthétique pour M. Panache : intérêt et risques d’un parfum cerise, puis recommandation.","res":"R1 à R6","t":20,"type":"open","tip":"Forme d’une note : en-tête (De / À / Date / Objet), introduction, intérêt, risques, recommandation, signature.","corr":[]},{"n":"2.1","verbe":"Sélectionner","txt":"les prospects relevant de la cible en justifiant les choix.","res":"R7, R8","t":10,"type":"select","tip":"Cible = CHR (pas les GMS) ET positionnement haut de gamme.","items":[{"l":"L’HERMITAGE GANTOIS — Hôtel/Restaurant 5★, Lille"},{"l":"CARREFOUR — Hypermarché"},{"l":"LE 8 — Restaurant traditionnel, Amiens"},{"l":"AUCHAN — Hypermarché"},{"l":"L’ARBORESCENCE — Restaurant gastronomique, Croix"},{"l":"INTERMARCHÉ — Hypermarché"},{"l":"HYPER U — Hypermarché"},{"l":"LE POTAGER DES DEMOISELLES — Restaurant traditionnel"},{"l":"LE CHÂTEAU DE BEAULIEU — Hôtel/Restaurant 5★"},{"l":"LA CAPSULE — Café « bières du monde », Lille"},{"l":"CORA — Hypermarché"},{"l":"LE MEZQUITÉ — Restaurant étoilé, Le Touquet"}],"corr":[]},{"n":"2.2","verbe":"Proposer","txt":"trois arguments de vente structurés mettant en avant trois mobiles d’achat.","res":"R8","t":12,"type":"open","tip":"Méthode CAP : Caractéristique → Avantage → Preuve, chaque argument relié à un mobile (SONCAS).","corr":[]},{"n":"2.3","verbe":"Préparer","txt":"le plan d’appel structuré visant à prendre des rendez-vous.","res":"R8","t":15,"type":"open","tip":"Entraînez-vous avec l’atelier « Plan d’appel » : l’ordre des étapes compte.","corr":[]},{"n":"3.1","verbe":"Calculer","txt":"les indicateurs de performance de l’opération de prospection téléphonique.","res":"R9","t":12,"type":"calc","tip":"Chaque taux = étape / étape précédente × 100. Taux de réalisation = résultat / objectif × 100.","fields":[{"l":"Taux d’appels aboutis (%)"},{"l":"Taux d’argumentation (%)"},{"l":"Taux de prise de RDV / argumentés (%)"},{"l":"Taux de réalisation RDV (%)"},{"l":"Taux de transformation ventes / RDV (%)"},{"l":"Taux de réalisation ventes (%)"}],"corr":[]},{"n":"3.2","verbe":"Analyser","txt":"ces indicateurs.","res":"R9","t":8,"type":"open","tip":"Constat chiffré → comparaison à l’objectif → explication → piste.","corr":[]}]},{"titre":"Mission 2 — Valoriser l’offre (soirée Dry January)","qs":[{"n":"4.1","verbe":"Sélectionner","txt":"le réseau social le plus adapté pour diffuser l’e-invitation. Justifier.","res":"R10 à R13","t":6,"type":"select","tip":"La cible : des professionnels (CHR), pas le grand public.","items":[{"l":"LinkedIn"},{"l":"Instagram"},{"l":"TikTok"},{"l":"Snapchat"},{"l":"Pinterest"}],"corr":[]},{"n":"4.2","verbe":"Concevoir","txt":"la maquette de l’e-invitation.","res":"R10, R11","t":12,"type":"open","tip":"Reprenez TOUTES les consignes de la note R10.","corr":[]},{"n":"4.3","verbe":"Créer","txt":"une fiche contact pour enrichir le SIC.","res":"—","t":10,"type":"open","tip":"4 blocs : identification, qualification, besoins / intérêt, suite à donner. Penser RGPD.","corr":[]},{"n":"5.1","verbe":"Évaluer","txt":"le coût de la soirée en détaillant les calculs.","res":"R14, R15","t":10,"type":"calc","tip":"Goodies × 50 participants, commerciaux = 5 × 4 h × 20 €, e-invitations = 300 × 0,30 €.","fields":[{"l":"Coût des goodies (€)"},{"l":"Frais de personnel (€)"},{"l":"Coût total de la soirée (€ HT)"}],"corr":[]},{"n":"5.2","verbe":"Déterminer","txt":"et analyser le chiffre d’affaires réalisé lors de la soirée.","res":"R14, R16","t":8,"type":"calc","tip":"Volume vendu en litres × 1 € HT le litre.","fields":[{"l":"CA HT (€)"},{"l":"Taux de réalisation (%)"}],"corr":[]},{"n":"5.3","verbe":"Mesurer","txt":"la rentabilité de la soirée et proposer 2 axes d’amélioration.","res":"R14 à R16","t":10,"type":"calc","tip":"Marge = CA HT × taux de marque. Rentabilité = marge − coût de la soirée.","fields":[{"l":"Marge brute (€)"},{"l":"Résultat de la soirée (€)"}],"corr":[]},{"n":"6.1","verbe":"Justifier","txt":"l’intérêt de communiquer après l’événement sur les réseaux sociaux.","res":"R17","t":6,"type":"open","tip":"R17 : « la fin d’un événement ne signifie pas la fin de sa promotion ».","corr":[]},{"n":"6.2","verbe":"Préparer","txt":"la publication à proposer avant sa mise en ligne.","res":"R17, R18","t":10,"type":"open","tip":"Accroche, texte court, visuels, chiffres clés, appel à l’action, hashtags, identifications.","corr":[]}]}],"locked":true},{"id":"edragon","nom":"E-DRAG’ON","annee":"Septembre 2024","option":"Option B","secteur":"Vélos à assistance électrique","lieu":"Calais (62)","role":"Commercial(e)","resp":"Dimitri Lamas, responsable du showroom","pitch":"Qualifier un fichier de cyclistes, prospecter vers le VAE, puis prospecter les pros du tourisme pendant l’Enduropale du Touquet.","contexte":"Ancien vendeur de quads et motos, réorienté vers le VAE en 2021. Showroom de 300 m² près de l’autoroute avec piste d’essai de 2 km. Ventes en showroom et sur Internet.","donnees":["Marques vendues : KTM, Solex, Haibike, Mondraker, Moov’in, Fantic, O2feel, Minerva, Unik Ride.","Barème (garder ≥ 8 points) : marque vendue 2 / non 0 · VE 0, VAE 1, VT 3 · modèle depuis 2022 : 0 ; 2020-2021 : 1 ; 2015-2019 : 2 ; avant 2015 : 3 · distance > 50 km : 0 ; 30-50 : 1 ; 10-30 : 2 ; 0-10 : 3.","Prospection 2024 : 200 courriels, 17 réponses, 58 appels sur les sans-réponse, 13 RDV, 10 VAE vendus. Prix moyen d’un VTT : 5 151,76 € TTC.","Prospection 2023 : 15 % de réponse, 95 % de relances, 8 RDV pour 80 appels, 2 ventes, CA 6 240 € TTC.","Enduropale : loueurs 4 prospects / 3 RDV ; hôtels-gîtes 5 / 3 ; objectif 75 %. Particuliers : visiteurs 4 032 (obj. 2 000), tests 400 (1 000), RDV 210 (150), ventes fat bike 0 (8), accessoires 2 (50)."],"missions":[{"titre":"Mission 1 — Participer aux actions de prospection","qs":[{"n":"1.1","verbe":"Lister","txt":"5 questions du formulaire pour identifier les usages et besoins futurs des prospects.","res":"R1 à R3","t":8,"type":"open","tip":"Questions courtes, plutôt fermées ou à choix, centrées sur l’usage et le projet d’achat.","corr":[]},{"n":"1.2","verbe":"Identifier","txt":"les prospects à retenir après application du barème. Justifier.","res":"R1 à R3","t":15,"type":"select","tip":"Calculez un score sur 4 critères pour chaque participant ; seuil ≥ 8.","items":[{"l":"Delrue Nadine — Boulogne · O2feel · VT · 2022"},{"l":"Poitevin Jeanne — Marck · Haibike · VT · 2018"},{"l":"Evrard Kevin — Marck · KTM · VT · 2020"},{"l":"Grégoire Anaé — Gravelines · KTM · VAE · 2021"},{"l":"Lejeune Léa — Réty · Nakamura · VT · 2019"},{"l":"Tuyer Quentin — Ardres · Rockrider · VAE · 2020"},{"l":"Moineur Benjamin — Saint-Omer · O2feel · VE · 2020"},{"l":"Lafon Félix — Wismes · KTM · VT · 2016"},{"l":"Dupuy Sabrina — Marquise · Solex · VT · 2014"},{"l":"Arouf Karim — Lynde · Haibike · VT · 2021"}],"corr":[]},{"n":"2.1","verbe":"Rédiger","txt":"trois arguments structurés pour convaincre la cible d’évoluer vers le VAE.","res":"R4 à R6","t":12,"type":"open","tip":"CAP + mobile. Les aides financières sont un argument « Argent » très fort.","corr":[]},{"n":"2.2","verbe":"Préparer","txt":"le contenu du courriel adressé à un prospect sélectionné.","res":"R4 à R6","t":12,"type":"open","tip":"Objet accrocheur, personnalisation, rappel du lien (la course), offre, appel à l’action, signature, désinscription.","corr":[]},{"n":"2.3","verbe":"Rédiger","txt":"un plan d’appel téléphonique structuré pour la relance.","res":"—","t":12,"type":"open","tip":"Relance = rappeler le courriel envoyé, puis objectif : un essai au showroom.","corr":[]},{"n":"3.1","verbe":"Mesurer","txt":"les résultats de l’opération de prospection.","res":"R7","t":12,"type":"calc","tip":"Les relances portent sur les courriels SANS réponse (200 − 17).","fields":[{"l":"Taux de réponse aux courriels (%)"},{"l":"Taux de relance (%)"},{"l":"Taux de RDV / appels (%)"},{"l":"Taux de transformation ventes / RDV (%)"},{"l":"CA estimé (€ TTC, 10 VTT)"}],"corr":[]},{"n":"3.2","verbe":"Analyser","txt":"les résultats puis proposer un axe d’amélioration.","res":"R7","t":8,"type":"open","tip":"Comparer 2024 à 2023, indicateur par indicateur.","corr":[]}]},{"titre":"Mission 2 — L’Enduropale du Touquet","qs":[{"n":"4.1","verbe":"Identifier","txt":"les quatre opportunités de démarcher les professionnels du tourisme au Touquet.","res":"R8 à R10","t":8,"type":"open","tip":"Infographie Enduropale + Vélomaritime + Accueil vélo.","corr":[]},{"n":"4.2","verbe":"Justifier","txt":"l’intérêt de ce week-end sportif pour développer ventes et notoriété auprès des particuliers.","res":"R8, R9","t":6,"type":"open","tip":"Audience, profil du public, cohérence avec le fat bike.","corr":[]},{"n":"4.3","verbe":"Indiquer","txt":"deux actions d’animation du stand avec leurs modalités de mise en œuvre.","res":"—","t":10,"type":"open","tip":"Pour chaque animation : quoi, où, quand, qui, avec quel matériel, comment on collecte les contacts.","corr":[]},{"n":"5.1","verbe":"Mesurer","txt":"et analyser les résultats sur les professionnels et sur les particuliers.","res":"R11","t":12,"type":"calc","tip":"Taux de RDV pros = RDV / prospects. Particuliers : taux de réalisation = résultat / objectif.","fields":[{"l":"Loueurs : taux de RDV (%)"},{"l":"Hôtels et gîtes : taux de RDV (%)"},{"l":"Visiteurs : réalisation (%)"},{"l":"Tests : réalisation (%)"},{"l":"RDV particuliers : réalisation (%)"},{"l":"Accessoires : réalisation (%)"}],"corr":[]},{"n":"5.2","verbe":"Proposer","txt":"les actions correctives.","res":"R11","t":6,"type":"open","tip":"Une action par point faible.","corr":[]}]}],"locked":true},{"id":"citroen","nom":"CITROËN AMI","annee":"Juin 2024","option":"Option B","secteur":"Micromobilité électrique","lieu":"Saint-Omer (62)","role":"Commercial(e) en concession","resp":"Sylvie Dubois, responsable commerciale","pitch":"Analyser l’originalité de l’AMI, fixer les objectifs de la « Tournée des plages 2024 », organiser la tournée et analyser les écarts.","contexte":"Concession de Saint-Omer, meilleur CA de France sur l’AMI depuis 2019. AMI : 100 % électrique, sans permis dès 14 ans, 2 places, vendue en ligne, en concession et chez FNAC-DARTY.","donnees":["Ventes T3 : 2021 = 1 217 · 2022 = 3 170 · 2023 = 3 700.","Canaux 2023 : Citroën digital 53 %, concessions 42 %, FNAC-DARTY digital 3 %, FNAC-DARTY magasin 2 %. Versions personnalisées ≈ 20 %.","Tarifs : AMI 7 790 € (6 890 € bonus déduit), LLD dès 19 €/mois ; My AMI Tonic 8 990 € (8 090 €). Autonomie 75 km, 45 km/h, charge 3 h.","Objectifs réajustés 2024 : 4 300 ventes dont 851 personnalisées ; répartition 1 % / 3 % / 53 % / 43 %.","Résultats T3 2024 : juillet 1 395, août 1 479, septembre 1 373 ; My AMI 2 930, personnalisées 1 317 ; FNAC digital 42, FNAC magasin 32, Citroën digital 2 300, concessions 1 873."],"missions":[{"titre":"Mission 1 — Développer et valoriser l’offre AMI","qs":[{"n":"1.1","verbe":"Démontrer","txt":"l’originalité de l’AMI : produit, distribution, profil acheteur, communication.","res":"R1 à R9","t":20,"type":"open","tip":"Un paragraphe par axe, avec des preuves tirées des ressources.","corr":[]},{"n":"1.2","verbe":"Analyser","txt":"les performances commerciales des opérations précédentes dont la « Tournée des plages ».","res":"R9","t":10,"type":"calc","tip":"Taux d’évolution = (valeur d’arrivée − valeur de départ) / valeur de départ × 100.","fields":[{"l":"Évolution T3 2021 → T3 2022 (%)"},{"l":"Évolution T3 2022 → T3 2023 (%)"}],"corr":[]},{"n":"2.1","verbe":"Proposer","txt":"et justifier le volume des ventes prévisionnelles de la tournée 2024.","res":"R9, R10","t":12,"type":"calc","tip":"Appliquer le taux d’évolution 2022-2023 aux ventes 2023. Puis répartir comme en 2023 et ajouter 10 % aux personnalisées.","fields":[{"l":"Prévision T3 2024 (unités)"},{"l":"Dont versions personnalisées (+10 %)"}],"corr":[]},{"n":"2.2","verbe":"Préparer","txt":"trois arguments structurés valorisant l’AMI.","res":"R11 à R13","t":10,"type":"open","tip":"Répondre aux attentes du profil type : parents qui équipent un ado.","corr":[]},{"n":"2.3","verbe":"Traiter","txt":"trois objections possibles en proposant une réponse adaptée pour chacune.","res":"R11 à R13","t":12,"type":"open","tip":"Les objections sont dans les avis du forum (R11). Technique : reformuler, puis répondre avec une preuve.","corr":[]}]},{"titre":"Mission 2 — La « Tournée des plages été 2024 »","qs":[{"n":"3.1","verbe":"Sélectionner","txt":"les plages d’accueil des démonstrations selon les recommandations.","res":"R14, R15","t":10,"type":"select","tip":"Pavillon Bleu, OU Handiplage, OU à moins de 6 km d’une FNAC-DARTY.","items":[{"l":"Bray-Dunes"},{"l":"Dunkerque"},{"l":"Oye-Plage"},{"l":"Gravelines Plage"},{"l":"Calais Plage"},{"l":"Sangatte"},{"l":"Tardinghen"},{"l":"Audinghen"},{"l":"Ambleteuse"},{"l":"Boulogne-sur-Mer Plage"},{"l":"Le Portel Plage"},{"l":"Saint-Étienne-au-Mont"},{"l":"Sainte-Cécile-Plage"},{"l":"Le Touquet Plage"},{"l":"Berck Plage"}],"corr":[]},{"n":"3.2","verbe":"Élaborer","txt":"un plan de tournée pertinent en précisant l’hébergement de chaque nuit.","res":"R16 à R18","t":15,"type":"open","tip":"Contraintes : départ et retour à Saint-Omer, J1 proche de Dunkerque (Sylvie y est), fin par la plage la plus éloignée de Saint-Omer (Berck, 100 km).","corr":[]},{"n":"4.1","verbe":"Comparer","txt":"les résultats aux objectifs réajustés en analysant les écarts.","res":"R19, R20","t":15,"type":"calc","tip":"Total des ventes = somme des 3 mois. Part de chaque canal = ventes du canal / total × 100.","fields":[{"l":"Ventes totales T3 2024"},{"l":"Taux de réalisation global (%)"},{"l":"Réalisation personnalisées (%)"},{"l":"Part FNAC-DARTY magasin (%)"},{"l":"Part concessions (%)"}],"corr":[]},{"n":"4.2","verbe":"Rédiger","txt":"un compte rendu à la direction : analyse des écarts et quatre pistes d’amélioration.","res":"R19, R20","t":15,"type":"open","tip":"Structure : en-tête, contexte, résultats chiffrés, analyse, propositions.","corr":[]}]}],"locked":true},{"id":"airsub","nom":"AIRSUB DRONE","annee":"Septembre 2023","option":"Option B","secteur":"Inspection et nettoyage par drone (B2B)","lieu":"Rocheservière (85)","role":"Commercial(e)","resp":"Brice Durandet, fondateur","pitch":"Diagnostic interne et externe, prospection téléphonique des agriculteurs, puis préparation et bilan du salon Heavent Paris.","contexte":"Créée en 2019, 5 personnes, certifiée DGAC. Drones aériens, marins et terrestres. Clients : industries, collectivités, exploitations agricoles (Siemens, La Ferme Angevine…).","donnees":["Prix AIRSUB (3 h) : photos 500 € TTC · plantes toxiques 720 € · irrigation 1 950 € · pack hiver 2 500 € · comptage 850 €. Délai 30 jours ; annulation possible selon météo.","Concurrents (photos / plantes / irrigation / hiver / comptage) : MULTI-DRONE 500/750/1 800/2 880/890 · DRONEXPRESS 650/725/2 087/2 920/910 · DRONEPLUS 480/690/1 620/3 000/950 · POLYDRONE 525/740/1 800/2 990/720.","Heavent : stand 12 m² 2 400 € TTC, 24 m² 4 000 € TTC, dossier 70 €, électricité 120 €, eau 80 €. Intérim 3 commerciaux : 2 557,80 € HT. Personnel permanent : 700 € par salon.","Encaissements « Salon Heavent » : Ville de Vire 1 500 € · Orange 2 750 € · ASF 2 680 €.","Objectifs par commercial : 16 contacts, 8 RDV, 2 contrats (×5). Résultats AIRSUB : 75 contacts, 29 RDV, 7 contrats."],"missions":[{"titre":"Mission 1 — Participer aux actions de prospection","qs":[{"n":"1.1","verbe":"Présenter","txt":"trois forces et trois faiblesses de l’entreprise.","res":"R1 à R4","t":8,"type":"open","tip":"Forces / faiblesses = INTERNE à l’entreprise.","corr":[]},{"n":"1.2","verbe":"Identifier","txt":"deux opportunités et deux menaces.","res":"R2, R3","t":6,"type":"open","tip":"Opportunités / menaces = EXTERNE (marché, loi, économie, concurrence).","corr":[]},{"n":"1.3","verbe":"Identifier","txt":"deux secteurs d’activité propices au développement. Justifier.","res":"R4","t":6,"type":"open","tip":"Le nombre d’étoiles de R4 indique le potentiel.","corr":[]},{"n":"2.1","verbe":"Concevoir","txt":"le plan d’appel pour une prise de RDV auprès des exploitants agricoles.","res":"R5 à R8","t":12,"type":"open","tip":"Le responsable rappelle que le secteur est réticent à dépenser : prévoir l’objection prix.","corr":[]},{"n":"2.2","verbe":"Préparer","txt":"quatre arguments valorisant les prestations pour les exploitations agricoles.","res":"R6 à R8","t":10,"type":"open","tip":"Comparez vos prix à ceux des concurrents : où êtes-vous moins cher ?","corr":[]},{"n":"2.3","verbe":"Proposer","txt":"trois réponses argumentées à trois objections.","res":"R5 à R8","t":10,"type":"open","tip":"Objection → reformulation → réponse avec preuve.","corr":[]}]},{"titre":"Mission 2 — Le salon Heavent Paris","qs":[{"n":"3.1","verbe":"Concevoir","txt":"la fiche contact pour collecter les informations des visiteurs.","res":"—","t":8,"type":"open","tip":"Identification / qualification / besoin / suite à donner / RGPD.","corr":[]},{"n":"3.2","verbe":"Proposer","txt":"trois leviers pour motiver les commerciaux durant le salon. Justifier.","res":"R9","t":8,"type":"open","tip":"Diaporama R9 : reconnaissance, rémunération, autonomie…","corr":[]},{"n":"3.3","verbe":"Proposer","txt":"deux actions sur le stand pour attirer les visiteurs. Justifier.","res":"—","t":6,"type":"open","tip":"Le drone lui-même est un spectacle.","corr":[]},{"n":"3.4","verbe":"Proposer","txt":"trois actions pour augmenter le nombre d’abonnés Instagram pendant le salon.","res":"R10","t":8,"type":"open","tip":"R10 donne 5 conseils.","corr":[]},{"n":"4.1","verbe":"Évaluer","txt":"le coût de la participation au salon.","res":"R11 à R13","t":12,"type":"calc","tip":"Choisir le stand 24 m² (5 commerciaux + démonstrations), électricité utile, eau inutile. Convertir le TTC en HT.","fields":[{"l":"Stand + dossier + électricité (€ HT)"},{"l":"Coût total (€ HT)"}],"corr":[]},{"n":"4.2","verbe":"Analyser","txt":"les résultats et la rentabilité d’un point de vue quantitatif et qualitatif.","res":"R11 à R15","t":12,"type":"calc","tip":"Ne retenir que les encaissements dont l’origine est « Salon Heavent ».","fields":[{"l":"CA encaissé grâce au salon (€)"},{"l":"Résultat (CA − coût) (€)"}],"corr":[]},{"n":"4.3","verbe":"Réaliser","txt":"une analyse comparative des résultats des commerciaux.","res":"R14","t":10,"type":"open","tip":"Comparer les taux de réalisation (R/O) et calculer la transformation contacts → RDV.","corr":[]},{"n":"4.4","verbe":"Proposer","txt":"deux axes d’amélioration des performances de l’opération et des commerciaux. Justifier.","res":"R11 à R15","t":6,"type":"open","tip":"Un axe pour l’opération, un pour l’équipe.","corr":[]}]}],"locked":true},{"id":"pyeta","nom":"PYETA","annee":"Juin 2023","option":"Option B","secteur":"Pieds de table industriels en acier","lieu":"Tuffalun (49)","role":"Commercial(e)","resp":"Sylvain Delapré, fondateur","pitch":"Se positionner face à 2 concurrents, choisir la cible, prospecter par téléphone puis préparer et évaluer un salon à Nantes.","contexte":"Fabricant de pieds de table démontables en acier depuis 2016, showroom à Tuffalun. Clients particuliers et professionnels (menuisiers, cuisinistes, agenceurs…), vente sur pyeta.fr.","donnees":["CA TTC particuliers / professionnels : 2020 76 500 / 13 500 · 2021 155 000 / 47 500 · 2022 138 500 / 102 000.","Enquête « prêt à acheter ? » (oui) : menuisiers 41 %, designers 8 %, architectes-agenceurs 22 %, cuisinistes 33 %, hôteliers 11 %, marbriers 18 %, ébénistes 5 %.","Prospection : 91 prospects contactés, 13 RDV. Repères : < 5 % trop faible, 10 % correct, 15 % efficace.","Salon : objectifs 60 contacts utiles, 30 participants au jeu, CA 12 000 €, rentabilité positive. Résultats : CA 13 200 € HT, taux de marque 40 %, 78 professionnels accueillis, 49 contacts utiles, 22 participants.","Coûts : stand 18 m² sans angle 2 719 €, affiches 2 m² 250 €, frais km 125 €, hôtel 95 €/nuit/personne, repas 20 €, personnel 960 €. 2 commerciaux, arrivés mercredi matin, repartis vendredi soir après le dîner."],"missions":[{"titre":"Mission 1 — Organiser une opération de prospection","qs":[{"n":"1.1","verbe":"Relever","txt":"dans un tableau, trois forces et trois faiblesses pour chacun des concurrents.","res":"R1 à R3","t":12,"type":"open","tip":"Comparez critère par critère : prix, taille, charge, matière, finitions, livraison, paiement.","corr":[]},{"n":"1.2","verbe":"Identifier","txt":"trois avantages concurrentiels de PYETA à mettre en valeur.","res":"R1 à R3","t":6,"type":"open","tip":"Ce que PYETA est SEUL à proposer, ou propose mieux.","corr":[]},{"n":"2.1","verbe":"Déterminer","txt":"la catégorie de clients à cibler et justifier avec trois arguments.","res":"R4 à R7","t":15,"type":"calc","tip":"Évolution 2020 → 2022 par catégorie, puis part de chaque catégorie dans le total de chaque année.","fields":[{"l":"Évolution CA particuliers 2020-2022 (%)"},{"l":"Évolution CA professionnels 2020-2022 (%)"},{"l":"Part des pros en 2020 (%)"},{"l":"Part des pros en 2022 (%)"}],"corr":[]},{"n":"3.1","verbe":"Lister","txt":"les entreprises à démarcher en prospection téléphonique en justifiant le choix.","res":"R8, R9","t":12,"type":"select","tip":"Les 2 secteurs les plus porteurs de l’enquête, à moins de 200 km, et qui ne sont pas déjà clients.","items":[{"l":"MARBRIER LAIO — Marbrier · 15 km"},{"l":"PRATICUISINE — Cuisiniste · 250 km"},{"l":"ENSEIGNE COMERA — Cuisiniste · 180 km"},{"l":"MENUISERIE REYMOND — Menuisier · 8 km"},{"l":"CUISINE ARTHUR BONNET — Cuisiniste · 50 km"},{"l":"PENCHAUD FILS — Ébéniste · 120 km"},{"l":"CRÉATEURS MENUISIERS ARTISANS RÉUNIS — Menuisier · 190 km"},{"l":"JÉRÔME DERAY — Menuisier · 430 km"},{"l":"IXINA 6 — Cuisiniste · 80 km"},{"l":"MEUBLES BOIS MASSIFS — Menuisier · 75 km"},{"l":"JULIEN OGER CUISINE — Cuisiniste · 120 km"},{"l":"CUISINELA — Cuisiniste · 380 km"},{"l":"HOTEL ROYAL — Hôtelier · 25 km"},{"l":"ARCHI CONCEPT — Architecte · 60 km"}],"corr":[]},{"n":"3.2","verbe":"Réaliser","txt":"un plan d’appel structuré pour proposer un rendez-vous.","res":"—","t":12,"type":"open","tip":"L’objectif de l’appel est le RDV, pas la vente.","corr":[]},{"n":"3.3","verbe":"Présenter","txt":"l’analyse de la performance de la prospection et citer trois autres moyens de se faire connaître.","res":"R10","t":8,"type":"calc","tip":"Taux de prise de RDV = RDV / prospects contactés × 100, à situer sur le thermomètre.","fields":[{"l":"Taux de prise de RDV (%)"}],"corr":[]}]},{"titre":"Mission 2 — Participer à un salon professionnel","qs":[{"n":"4.1","verbe":"Présenter","txt":"quatre bonnes raisons de participer à un salon.","res":"R11","t":6,"type":"open","tip":"Pensez prospection, vente, notoriété, veille.","corr":[]},{"n":"4.2","verbe":"Sélectionner","txt":"le salon le plus approprié en justifiant par trois éléments.","res":"R11","t":6,"type":"select","tip":"Le salon doit attirer la cible professionnelle.","items":[{"l":"Salon du Mobilier (Le Parc) — professionnels du meuble, février 2024"},{"l":"Salon de l’Habitat — 23 au 25 février 2024"},{"l":"Salon Maison & Déco — 10 au 12 novembre 2023"}],"corr":[]},{"n":"5.1","verbe":"Concevoir","txt":"la fiche contact du salon.","res":"—","t":8,"type":"open","tip":"Identification, qualification, besoins, suite à donner, consentement.","corr":[]},{"n":"5.2","verbe":"Présenter","txt":"dans un tableau trois arguments structurés pour le modèle Mikado selon les mobiles d’achat.","res":"R12","t":10,"type":"open","tip":"Tableau à 3 colonnes : caractéristique / avantage / preuve, une ligne par mobile.","corr":[]},{"n":"5.3","verbe":"Sélectionner","txt":"le réseau social le plus adapté à la cible et au message. Justifier.","res":"R14","t":5,"type":"select","tip":"Cible professionnelle (B2B).","items":[{"l":"LinkedIn"},{"l":"Facebook"},{"l":"Instagram"},{"l":"X"},{"l":"Pinterest"}],"corr":[]},{"n":"5.4","verbe":"Rédiger","txt":"la publication qui apparaîtra sur le réseau social choisi.","res":"R13, R15","t":10,"type":"open","tip":"Respectez chaque consigne de R15 : image, logo, émojis, hashtag du salon, lien, question finale, orthographe.","corr":[]},{"n":"6.1","verbe":"Évaluer","txt":"la rentabilité financière de la participation au salon.","res":"R16 à R18","t":15,"type":"calc","tip":"2 nuits (mercredi, jeudi) pour 2 personnes. Repas : déjeuner et dîner du mercredi au vendredi = 6 repas par personne.","fields":[{"l":"Coût total du salon (€)"},{"l":"Marge réalisée (€)"},{"l":"Résultat (€)"}],"corr":[]},{"n":"6.2","verbe":"Préciser","txt":"si les objectifs sont atteints, puis proposer trois axes d’amélioration.","res":"R16, R18","t":10,"type":"calc","tip":"Taux de réalisation de chaque objectif.","fields":[{"l":"Contacts utiles (%)"},{"l":"Jeu-concours (%)"},{"l":"Chiffre d’affaires (%)"}],"corr":[]}]}],"locked":true},{"id":"axa","nom":"AXA Sartrouville","annee":"Juin 2022 · Antilles","option":"Option B","secteur":"Assurance des EDPM (trottinettes électriques)","lieu":"Sartrouville (78)","role":"Chargée de clientèle (Noa Nocer)","resp":"Nicolas Gérard et David Mani, co-responsables","pitch":"Étudier le marché des EDPM, prospecter les clients par SMS + téléphone, puis du street marketing à la gare et une campagne Instagram.","contexte":"Agence AXA de centre-ville. Depuis le décret du 23 octobre 2019, l’assurance responsabilité civile est obligatoire pour circuler en EDPM.","donnees":["Trottinettes électriques 2020 : 640 000 unités (+34 %), 206,6 M€ (+8,3 %). Trottinettes = 89 % du marché des EDP en valeur.","Offre AXA EDPM : dès 8 €/mois, défense pénale, blessures corporelles, vol et dommages, extension RC en option. Concurrents de 3,33 € à 22,30 €/mois.","Client idéal : habitant Sartrouville, 30-50 ans, cadre ou profession libérale, au moins 2 contrats à l’agence.","SMS : 95,16 % délivrés, 98 % de lecture, 200 € les 1 000 SMS, 160 caractères max (STOP compris).","Street marketing (20 jours, 2 commerciaux) : salaires 3 400 €, totem 400 €, stand 8 €/jour, redevance 26 €/jour, impression 65 €. Résultats : 1 200 abordés, 20 % informés, 50 % de RDV, 80 % d’adhésion, 96 € HT/an par contrat.","Instagram avant / après : abonnés 162 / 222 ; visiteurs 561 / 842 ; âge moyen 45 / 39 ; interactions 4 / 160 ; engagement 2 % / 36 % ; clics lien profil 32 / 30."],"missions":[{"titre":"Mission 1 — Valoriser une nouvelle offre auprès des clients","qs":[{"n":"1.1","verbe":"Analyser","txt":"le marché français des EDPM en 2020 dans une note structurée d’une vingtaine de lignes.","res":"R1 à R3","t":25,"type":"open","tip":"5 points imposés : caractéristiques et perspectives, acteurs, utilisateurs, obligations, position d’AXA.","corr":[]},{"n":"2.1","verbe":"Caractériser","txt":"la cible de l’opération de prospection.","res":"R4","t":6,"type":"open","tip":"Reprendre les 4 critères du responsable et en tirer des conséquences commerciales.","corr":[]},{"n":"2.2","verbe":"Expliquer","txt":"l’intérêt du SMS marketing pour cette action.","res":"R5","t":6,"type":"open","tip":"Citez des chiffres de R5.","corr":[]},{"n":"2.3","verbe":"Rédiger","txt":"le SMS marketing sur l’offre AXA EDPM.","res":"R6, R7","t":8,"type":"open","tip":"≤ 160 caractères, STOP compris. Émetteur → accroche → offre → lien → STOP. Testez-le dans l’atelier SMS.","corr":[]},{"n":"2.4","verbe":"Concevoir","txt":"le plan d’appel pour la relance téléphonique après le SMS.","res":"R4 à R7","t":12,"type":"open","tip":"Le client connaît déjà l’agence : appel plus chaleureux, rappel du SMS.","corr":[]}]},{"titre":"Mission 2 — Élargir le portefeuille clients","qs":[{"n":"3.1","verbe":"Déterminer","txt":"deux objectifs quantitatifs et deux objectifs qualitatifs pour l’action. Justifier.","res":"R8","t":8,"type":"open","tip":"Quantitatif = chiffré (nombre, %, €). Qualitatif = image, notoriété, informations.","corr":[]},{"n":"3.2","verbe":"Rédiger","txt":"un pitch commercial pour proposer l’offre aux prospects.","res":"R9 à R11","t":8,"type":"open","tip":"Identité → problème → solution et atouts → appel à l’action. Court et oral.","corr":[]},{"n":"3.3","verbe":"Apprécier","txt":"la rentabilité de l’opération de street marketing dans une note structurée.","res":"R12, R13","t":15,"type":"calc","tip":"Coût = salaires + totem + stand × 20 + redevance × 20 + impression. Contrats = abordés × % informés × % RDV × % adhésion.","fields":[{"l":"Coût de l’opération (€ HT)"},{"l":"Nombre de contrats signés"},{"l":"CA annuel généré (€ HT)"},{"l":"Résultat (€)"}],"corr":[]},{"n":"4.1","verbe":"Préparer","txt":"la publication Instagram et justifier chaque élément.","res":"R14 à R16","t":12,"type":"open","tip":"Pas de lien cliquable en légende sur Instagram : renvoyer vers le lien du profil.","corr":[]},{"n":"4.2","verbe":"Analyser","txt":"l’évolution des indicateurs du compte Instagram.","res":"R17, R18","t":10,"type":"calc","tip":"Taux d’évolution pour chaque indicateur, puis interprétation.","fields":[{"l":"Évolution des abonnés (%)"},{"l":"Évolution des visiteurs (%)"},{"l":"Évolution des clics sur le lien (%)"}],"corr":[]},{"n":"4.3","verbe":"Proposer","txt":"deux actions pour améliorer l’exploitation commerciale d’Instagram.","res":"R16 à R18","t":6,"type":"open","tip":"Partir du point faible : les clics.","corr":[]}]}],"locked":true},{"id":"virevolte","nom":"VIREVOLTE","annee":"Juin 2022 · Métropole","option":"Option B","secteur":"Parfums naturels","lieu":"Dijon (21)","role":"Commercial(e)","resp":"Julie Debomer, fondatrice","pitch":"Analyser le marché des cosmétiques bio, recruter des revendeurs via la marketplace ANKORSTORE, préparer et évaluer le salon Natexpo.","contexte":"Marque créée en 2019 : 4 eaux de parfum naturelles (50 ml, 8 ml, coffret), certifiées Cosmos Natural, vegan, fabriquées en France. Showroom à Dijon et site marchand. Le 1er critère d’achat d’un parfum est son odeur.","donnees":["Marché : 757 M€ en France en 2018 ; ≈ 60 % des Françaises achètent des cosmétiques bio (33 % en 2010) ; le prix freine plus de 60 % des consommatrices.","Offre bio par circuit : magasins bio 65 %, vente à distance 52 %, pharmacies 44 %, circuits pros 41,5 %, GMS 13,5 %, parfumeries 12 %.","ANKORSTORE : 50 000 détaillants, 5 000 marques, 14 pays ; paiement garanti à la marque ; 60 jours de paiement et franco pour le revendeur ; commission 0 % sur les clients apportés via LIFT ; minimum 100 € HT.","Natexpo : 23-25 octobre 2022, Paris Nord Villepinte, 20 000 visiteurs pros, 1 200 exposants, stand S39 (Village Cosmétiques). Entrée gratuite sur inscription, 50 € TTC sinon.","Coûts : stand 1 320,02 € HT, goodies 250 €, déplacement 95,98 €, hôtel 42,05 €/nuit/personne, repas 117,10 €/personne (3 jours), salaires 1 539 €. 3 commerciaux arrivés la veille.","Résultats : objectif CA 4 800 € HT ; réalisé 4 725,36 € HT (12 kits S à 393,78 €) ; 11 nouveaux revendeurs ; 62 contacts ; 8 RDV ; taux de marque 50 %."],"missions":[{"titre":"Mission 1 — Participer aux actions de prospection","qs":[{"n":"1.1","verbe":"Relever","txt":"deux forces et deux faiblesses du marché des cosmétiques bio et naturels.","res":"R1 à R5","t":6,"type":"open","tip":"Il s’agit du MARCHÉ, pas de l’entreprise.","corr":[]},{"n":"1.2","verbe":"Déterminer","txt":"dans une courte note, le développement possible de VIREVOLTE sur ce marché.","res":"R1 à R5","t":15,"type":"open","tip":"Relier les atouts de la marque aux attentes du marché, puis aux circuits à privilégier.","corr":[]},{"n":"1.3","verbe":"Présenter","txt":"trois avantages d’une distribution omnicanale pour VIREVOLTE.","res":"R3, R4","t":6,"type":"open","tip":"75 % s’informent en ligne, 71 % achètent en parfumerie.","corr":[]},{"n":"2.1","verbe":"Indiquer","txt":"quatre intérêts pour VIREVOLTE de vendre via ANKORSTORE.","res":"R6","t":8,"type":"open","tip":"Avantages pour la MARQUE, puis ceux qui facilitent le travail du commercial auprès des revendeurs.","corr":[]},{"n":"2.2","verbe":"Sélectionner","txt":"dans le fichier, les commerçants qui pourraient devenir distributeurs. Justifier.","res":"R7","t":10,"type":"select","tip":"Hors Dijon, univers bio / naturel / vegan, et pas de refus explicite.","items":[{"l":"MONA LISA — Salon de coiffure · Dijon"},{"l":"MOND’O BIO — Épicerie · Baie-Mahault"},{"l":"MONSIEUR BASIL — Concept store · Oullins"},{"l":"L’AMANDIER — Produits naturels · Poitiers"},{"l":"MOSO — Produits naturels · Paris"},{"l":"MOULIN MAURICE — Épicerie · Dijon"},{"l":"BIO FLEUR DE SOLEIL — Fleuriste bio · Rennes"},{"l":"MURIEL HAXPAHE — Salon de coiffure · Mimizan"},{"l":"MY BENE FEELS — Produits naturels · Pontchâteau"},{"l":"NUANCE BIO — Coiffure bio et vegan · Paris"}],"corr":[]},{"n":"2.3","verbe":"Rédiger","txt":"un plan d’appel pour inciter le commerçant à commander sur ANKORSTORE.","res":"R6, R7","t":12,"type":"open","tip":"Ici l’objectif est une commande, pas un RDV.","corr":[]}]},{"titre":"Mission 2 — Le salon Natexpo","qs":[{"n":"3.1","verbe":"Relever","txt":"quatre avantages et deux limites de la participation au salon Natexpo.","res":"R8 à R10","t":8,"type":"open","tip":"Les limites : coût, concurrence, cible partiellement hors sujet.","corr":[]},{"n":"3.2","verbe":"Élaborer","txt":"la fiche contact pour collecter des informations exploitables sur les revendeurs.","res":"—","t":8,"type":"open","tip":"Pensez « présence sur ANKORSTORE » : c’est une information exploitable.","corr":[]},{"n":"3.3","verbe":"Rédiger","txt":"la publication annonçant la présence au salon et incitant à s’inscrire gratuitement.","res":"R8 à R10","t":10,"type":"open","tip":"Consignes de Natexpo : hashtag #Natexpo2022 et identification @Natexpo.","corr":[]},{"n":"4.1","verbe":"Proposer","txt":"les facteurs d’ambiance et la signalétique pour aménager le stand. Justifier.","res":"R9 à R12","t":10,"type":"open","tip":"Facteurs d’ambiance = les 5 sens. Signalétique = repérage et information.","corr":[]},{"n":"4.2","verbe":"Proposer","txt":"deux animations pour attirer les revendeurs.","res":"—","t":6,"type":"open","tip":"Une animation sensorielle et une animation qui collecte des contacts.","corr":[]},{"n":"4.3","verbe":"Rédiger","txt":"deux arguments pour présenter l’offre commerciale sur le salon.","res":"R13","t":8,"type":"open","tip":"Argument pour un REVENDEUR : ce qui l’aide à vendre et à gagner de l’argent.","corr":[]},{"n":"5.1","verbe":"Indiquer","txt":"trois tâches à réaliser au retour du salon pour exploiter les contacts.","res":"—","t":5,"type":"open","tip":"Saisir, qualifier, relancer.","corr":[]},{"n":"5.2","verbe":"Déterminer","txt":"la rentabilité de l’opération.","res":"R14, R15","t":15,"type":"calc","tip":"Nuits : veille, jour 1, jour 2 = 3 nuits pour 3 personnes. Marge = CA × taux de marque.","fields":[{"l":"Hébergement (€)"},{"l":"Coût total (€ HT)"},{"l":"Marge (€)"},{"l":"Résultat (€)"}],"corr":[]},{"n":"5.3","verbe":"Rendre compte","txt":"dans un courriel à Julie Debomer : points forts, points faibles, un axe d’amélioration.","res":"R14, R15","t":12,"type":"open","tip":"Courriel = objet, formule d’appel, corps structuré, formule de politesse, signature.","corr":[]}]}],"locked":true}];
+</script>
+<script>
+/* ===================== Utilitaires ===================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (n, d = 2) => Number(n).toLocaleString("fr-FR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const fmt0 = n => Number(n).toLocaleString("fr-FR", {maximumFractionDigits: 2});
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+function parseNum(v){ if (v == null) return NaN; const s = String(v).replace(/\s|€|%| /g, "").replace(",", "."); if (s === "" || s === "-") return NaN; return Number(s); }
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 1800); }
+
+const STORE_KEY = "coachE2.v1";
+let STATE = {};
+try { STATE = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch (e) { STATE = {}; }
+STATE.sujets ??= {}; STATE.calc ??= {ok:0,total:0,streak:0}; STATE.known ??= {};
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch (e) {} }
+
+/* ===================== Verbes d'action ===================== */
+const VERBES = [
+ ["Calculer","Formule écrite, calcul posé avec les données, résultat arrondi avec l’unité (€, %), puis une phrase de conclusion."],
+ ["Analyser","Constat chiffré → comparaison à l’objectif ou à la période précédente → explication des causes → conclusion."],
+ ["Justifier","Chaque choix est suivi d’un « car » qui s’appuie sur une ressource ou une donnée du contexte."],
+ ["Sélectionner / Choisir","Nommer clairement l’élément retenu, citer les critères, expliquer pourquoi les autres sont écartés."],
+ ["Proposer","Des solutions concrètes et réalistes (moyens, coût, délai), adaptées à l’entreprise du sujet."],
+ ["Relever / Identifier","Repérer dans les ressources et reformuler brièvement. Souvent sous forme de tableau ou de liste."],
+ ["Rédiger","Respecter la forme du document demandé : note, courriel, compte rendu, SMS, publication. Orthographe soignée."],
+ ["Concevoir / Élaborer","Produire un outil utilisable : fiche contact, plan d’appel, maquette, plan de tournée."],
+ ["Caractériser","Décrire précisément avec des critères : âge, lieu, CSP, comportement, besoins…"],
+ ["Comparer","Mettre côte à côte, de préférence dans un tableau, puis conclure."]
+];
+
+/* ===================== Navigation ===================== */
+const VIEWS = ["methode","sujets","calculs","ateliers","notions"];
+function route(){
+  let h = (location.hash || "#methode").slice(1);
+  let sujetId = null;
+  if (h.startsWith("sujet-")) { sujetId = h.slice(6); h = "sujets"; }
+  if (!VIEWS.includes(h)) h = "methode";
+  $$("section[data-view]").forEach(s => s.hidden = s.dataset.view !== h);
+  $$("nav.tabs a").forEach(a => { if (a.dataset.tab === h) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  if (h === "sujets") { if (sujetId && SUJETS.find(s => s.id === sujetId)) openSujet(sujetId); else closeSujet(); }
+  if (h === "calculs" && !CALC.current) newExo();
+  window.scrollTo({top:0});
+}
+window.addEventListener("hashchange", route);
+
+/* ===================== Méthode ===================== */
+$("#verbs").innerHTML = VERBES.map(([v,d]) => `<div class="verb"><span><span class="hl">${v}</span></span><p>${d}</p></div>`).join("");
+
+/* ===================== Études de cas ===================== */
+const allQs = s => s.missions.flatMap(m => m.qs);
+function sState(id){ STATE.sujets[id] ??= {a:{}, mode:"train", start:null, done:false}; return STATE.sujets[id]; }
+function qState(sid, qn){ const st = sState(sid); st.a[qn] ??= {text:"", f:{}, sel:{}, chk:{}, rev:false}; return st.a[qn]; }
+
+function fieldOk(f, v){ const n = parseNum(v); if (isNaN(n)) return null; const tol = f.tol ?? 0.011; return Math.abs(n - f.a) <= tol + 1e-9; }
+function selEval(q, sel){
+  let ok = true;
+  q.items.forEach((it, i) => { const on = !!sel[i]; if (it.s === "in" && !on) ok = false; if (it.s === "out" && on) ok = false; });
+  return ok;
+}
+function qScore(s, q){
+  const st = qState(s.id, q.n);
+  if (q.type === "calc") { const n = q.fields.filter((f,i) => fieldOk(f, st.f[i]) === true).length; return n / q.fields.length; }
+  if (q.type === "select") { if (!Object.keys(st.sel).length) return 0; return selEval(q, st.sel) ? 1 : 0.4 * (q.items.filter((it,i)=> (it.s==="in" && st.sel[i]) || (it.s==="out" && !st.sel[i])).length / q.items.length); }
+  const n = Object.values(st.chk).filter(Boolean).length; return Math.min(1, n / Math.max(1, q.corr.length));
+}
+function qTouched(s, q){
+  const st = qState(s.id, q.n);
+  return !!(st.text.trim() || Object.values(st.f).some(v => String(v).trim()) || Object.keys(st.sel).length || Object.values(st.chk).some(Boolean));
+}
+function sujetProgress(s){ const qs = allQs(s); const done = qs.filter(q => qTouched(s, q)).length; return {done, total: qs.length, pct: Math.round(done / qs.length * 100)}; }
+
+function renderGrid(){
+  $("#grid-sujets").innerHTML = SUJETS.map(s => {
+    const p = sujetProgress(s);
+    return `<button class="sujet" data-open="${s.id}">
+      <div class="tags"><span class="tag ${s.option==="Option A"?"a":""}">${s.option}</span><span class="tag">${s.annee}</span><span class="tag ${s.locked?"lock":"open"}">${s.locked?"Corrigé verrouillé":"Corrigé disponible"}</span></div>
+      <h3>${esc(s.nom)}</h3>
+      <p>${esc(s.secteur)} · ${esc(s.lieu)}</p>
+      <p>${esc(s.pitch)}</p>
+      <div class="bar" aria-label="Progression ${p.pct} %"><i style="width:${p.pct}%"></i></div>
+      <span class="muted" style="font-size:.8rem">${p.done} / ${p.total} questions traitées</span>
+    </button>`;
+  }).join("");
+}
+$("#grid-sujets").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (b) location.hash = "sujet-" + b.dataset.open; });
+
+let TIMER = null;
+function closeSujet(){ $("#sujet-view").hidden = true; $("#sujets-list").hidden = false; renderGrid(); clearInterval(TIMER); }
+
+function openSujet(id){
+  const s = SUJETS.find(x => x.id === id); const st = sState(id);
+  $("#sujets-list").hidden = true; const v = $("#sujet-view"); v.hidden = false;
+  const exam = st.mode === "exam";
+  const teacherLock = !!s.locked;
+  const locked = teacherLock || (exam && !st.done);
+  let outline = "", body = "";
+  s.missions.forEach((m, mi) => {
+    outline += `<div class="mt">${esc(m.titre.split("—")[0].trim())}</div>`;
+    body += `<h2 class="mission-title">${esc(m.titre)}</h2>`;
+    m.qs.forEach(q => {
+      const qid = `q-${id}-${q.n.replace(".","-")}`;
+      outline += `<a href="#${qid}" data-jump="${qid}"><span class="dot ${qTouched(s,q)?"done":""}" data-dot="${q.n}"></span>${q.n} · ${esc(q.verbe)}</a>`;
+      body += renderQ(s, q, qid, locked);
+    });
+  });
+  v.innerHTML = `
+  <div style="display:grid;gap:18px">
+    <div class="row"><a class="btn ghost sm" href="#sujets">← Tous les sujets</a></div>
+    <div class="case-head">
+      <div class="tags"><span class="tag ${s.option==="Option A"?"a":""}">${s.option}</span><span class="tag">${s.annee}</span><span class="tag">${allQs(s).length} questions</span></div>
+      <h1 class="h1">${esc(s.nom)}</h1>
+      <p class="lede">${esc(s.pitch)}</p>
+    </div>
+    <div class="ctx">
+      <dl><dt>Entreprise</dt><dd>${esc(s.secteur)} — ${esc(s.lieu)}</dd><dt>Ton rôle</dt><dd>${esc(s.role)}</dd><dt>Responsable</dt><dd>${esc(s.resp)}</dd><dt>Contexte</dt><dd>${esc(s.contexte)}</dd></dl>
+      <details class="data"><summary>Données clés pour les calculs (aide-mémoire)</summary><ul>${s.donnees.map(d => `<li>${esc(d)}</li>`).join("")}</ul></details>
+    </div>
+    ${teacherLock ? `<div class="lockbox">🔒 Ton professeur n’a pas encore ouvert le corrigé de ce sujet. Traite toutes les questions : tes réponses sont gardées dans ce navigateur et tu pourras comparer dès l’ouverture.</div>` : ""}
+    <div class="mode-bar">
+      <div class="row">
+        <div class="seg" role="group" aria-label="Mode">
+          <button data-mode="train" aria-pressed="${!exam}">Entraînement</button>
+          <button data-mode="exam" aria-pressed="${exam}">Examen blanc 3 h</button>
+        </div>
+        <span class="muted" style="font-size:.86rem">${teacherLock ? "Corrigé verrouillé par ton professeur : tes réponses restent enregistrées." : exam ? (st.done ? "Copie rendue : corrigés ouverts." : "Corrigés verrouillés jusqu’à la remise de la copie.") : "Corrigé disponible sous chaque question."}</span>
+      </div>
+      <div class="row">${exam ? `<span class="clock" id="clock">3:00:00</span>${st.done ? `<button class="btn sm" data-act="restart">Recommencer</button>` : (st.start ? `<button class="btn primary sm" data-act="finish">Rendre la copie</button>` : `<button class="btn primary sm" data-act="start">Démarrer le chrono</button>`)}` : `<button class="btn sm red" data-act="reset">Effacer mes réponses</button>`}</div>
+    </div>
+    <div class="case-layout">
+      <nav class="outline" aria-label="Questions">${outline}<div class="mt">Bilan</div><a href="#bilan-${id}" data-jump="bilan-${id}">Score du sujet</a></nav>
+      <div style="display:grid;gap:16px;min-width:0">${body}<div class="bilan" id="bilan-${id}"></div></div>
+    </div>
+  </div>`;
+  bindSujet(s);
+  updateBilan(s);
+  tick(s);
+}
+
+function renderQ(s, q, qid, locked){
+  const st = qState(s.id, q.n);
+  let work = "";
+  if (q.type === "calc") {
+    work = `<div class="fields">${q.fields.map((f,i) => `<div class="field"><label for="${qid}-f${i}">${esc(f.l)}</label><input id="${qid}-f${i}" inputmode="decimal" autocomplete="off" data-f="${i}" value="${esc(st.f[i] ?? "")}"><span class="exp" data-exp="${i}"></span></div>`).join("")}</div>
+    <textarea class="copy" id="${qid}-t" data-text placeholder="Détaille ici tes calculs et ta phrase de conclusion…" style="min-height:112px">${esc(st.text)}</textarea>`;
+  } else if (q.type === "select") {
+    work = `<div class="picks">${q.items.map((it,i) => `<label class="pick" data-pick="${i}"><input type="checkbox" id="${qid}-s${i}" data-s="${i}" ${st.sel[i]?"checked":""}><span>${esc(it.l)}<small data-why="${i}" hidden>${esc(it.w)}</small></span></label>`).join("")}</div>
+    <textarea class="copy" id="${qid}-t" data-text placeholder="Justifie ton choix…" style="min-height:112px">${esc(st.text)}</textarea>`;
+  } else {
+    work = `<textarea class="copy" id="${qid}-t" data-text placeholder="Rédige ta réponse comme sur ta copie…">${esc(st.text)}</textarea>`;
+  }
+  const canSee = !locked;
+  return `<article class="q" id="${qid}" data-q="${q.n}">
+    <div class="q-head"><span class="q-num">${q.n}</span><div class="q-txt"><p><span class="hl">${esc(q.verbe)}</span> ${esc(q.txt)}</p>
+      <div class="q-meta"><span>Ressources : ${esc(q.res)}</span><span>Temps conseillé : ${q.t} min</span><span class="score-chip" data-chip hidden></span></div></div></div>
+    ${work}
+    <div class="row">
+      <button class="btn sm" data-act="tip">Coup de pouce</button>
+      ${s.locked ? "" : `${q.type==="calc"||q.type==="select" ? `<button class="btn sm" data-act="check" ${canSee?"":"disabled"}>Vérifier</button>` : ""}
+      <button class="btn sm red" data-act="corr" ${canSee?"":"disabled title=\"Disponible après la remise de la copie\""}>Voir le corrigé</button>`}
+    </div>
+    <div class="tip" data-tip hidden>${esc(q.tip)}</div>
+    ${s.locked ? "" : `<div class="corr" data-corr hidden>
+      <h4>Corrigé</h4>
+      <p class="note">${q.type==="open" ? "Coche chaque élément présent dans ta réponse : ton score s’ajuste." : "Éléments de correction détaillés :"}</p>
+      <ul>${q.corr.map((c,i) => q.type==="open" ? `<li><label><input type="checkbox" data-c="${i}" ${st.chk[i]?"checked":""}><span>${c}</span></label></li>` : `<li>${c}</li>`).join("")}</ul>
+    </div>`}
+  </article>`;
+}
+
+function bindSujet(s){
+  const v = $("#sujet-view"); const st = sState(s.id);
+  v.oninput = e => {
+    const art = e.target.closest("article.q"); if (!art) return;
+    const qs = qState(s.id, art.dataset.q);
+    if (e.target.matches("[data-text]")) qs.text = e.target.value;
+    if (e.target.matches("[data-f]")) { qs.f[e.target.dataset.f] = e.target.value; e.target.classList.remove("ok","ko"); }
+    save(); markDot(s, art.dataset.q);
+  };
+  v.onchange = e => {
+    const art = e.target.closest("article.q"); if (!art) return;
+    const q = allQs(s).find(x => x.n === art.dataset.q); const qs = qState(s.id, q.n);
+    if (e.target.matches("[data-s]")) { qs.sel[e.target.dataset.s] = e.target.checked; if (!e.target.checked) delete qs.sel[e.target.dataset.s]; if (!Object.keys(qs.sel).length) qs.sel = {}; $$(".pick", art).forEach(p => p.classList.remove("good","bad","opt")); }
+    if (e.target.matches("[data-c]")) qs.chk[e.target.dataset.c] = e.target.checked;
+    save(); markDot(s, q.n); updateChip(s, q, art); updateBilan(s);
+  };
+  v.onclick = e => {
+    const b = e.target.closest("[data-act],[data-mode],[data-jump]"); if (!b) return;
+    if (b.dataset.jump) { e.preventDefault(); document.getElementById(b.dataset.jump)?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"}); return; }
+    if (b.dataset.mode) { st.mode = b.dataset.mode; if (st.mode === "train") { st.start = null; st.done = false; } save(); openSujet(s.id); return; }
+    const art = b.closest("article.q"); const q = art ? allQs(s).find(x => x.n === art.dataset.q) : null;
+    switch (b.dataset.act) {
+      case "tip": $("[data-tip]", art).hidden ^= true; break;
+      case "check": checkQ(s, q, art); break;
+      case "corr": { const c = $("[data-corr]", art); c.hidden = !c.hidden; if (!c.hidden) { checkQ(s, q, art); qState(s.id, q.n).rev = true; save(); } break; }
+      case "start": st.start = Date.now(); st.done = false; save(); openSujet(s.id); break;
+      case "finish": st.done = true; save(); openSujet(s.id); toast(s.locked ? "Copie rendue. Le corrigé sera ouvert par ton professeur." : "Copie rendue. Les corrigés sont ouverts."); break;
+      case "restart": st.start = null; st.done = false; save(); openSujet(s.id); break;
+      case "reset": if (b.dataset.confirm) { STATE.sujets[s.id] = {a:{}, mode:"train", start:null, done:false}; save(); openSujet(s.id); toast("Réponses effacées"); } else { b.dataset.confirm = "1"; b.textContent = "Confirmer l’effacement"; setTimeout(() => { if (b.isConnected) { delete b.dataset.confirm; b.textContent = "Effacer mes réponses"; } }, 4000); } break;
+    }
+  };
+  allQs(s).forEach(q => { const art = v.querySelector(`article[data-q="${q.n}"]`); const qs = qState(s.id, q.n); if (!s.locked && qs.rev && !(st.mode==="exam" && !st.done)) { $("[data-corr]", art).hidden = false; checkQ(s, q, art, true); } updateChip(s, q, art); });
+}
+
+function checkQ(s, q, art, silent){
+  const qs = qState(s.id, q.n);
+  if (q.type === "calc") {
+    let good = 0;
+    q.fields.forEach((f,i) => { const inp = $(`[data-f="${i}"]`, art); const ok = fieldOk(f, inp.value); inp.classList.remove("ok","ko"); if (ok === true) { inp.classList.add("ok"); good++; } else if (ok === false) inp.classList.add("ko");
+      const exp = $(`[data-exp="${i}"]`, art); exp.textContent = (!$("[data-corr]", art).hidden && ok !== true) ? `→ ${fmt0(f.a)}` : ""; });
+    if (!silent) toast(`${good} / ${q.fields.length} résultat${q.fields.length>1?"s":""} juste${good>1?"s":""}`);
+  }
+  if (q.type === "select") {
+    q.items.forEach((it,i) => { const p = $(`[data-pick="${i}"]`, art); const on = !!qs.sel[i]; p.classList.remove("good","bad","opt");
+      if (it.s === "opt") p.classList.add("opt"); else if ((it.s==="in") === on) p.classList.add(on ? "good" : "x"); else p.classList.add("bad");
+      $(`[data-why="${i}"]`, art).hidden = false; });
+    if (!silent) toast(selEval(q, qs.sel) ? "Sélection correcte" : "Sélection à revoir : regarde les cases rouges");
+  }
+  updateChip(s, q, art); updateBilan(s);
+}
+function updateChip(s, q, art){
+  const chip = $("[data-chip]", art); const qs = qState(s.id, q.n); const st = sState(s.id);
+  const visible = !s.locked && (q.type !== "open" ? (Object.values(qs.f).some(v=>String(v).trim()) || Object.keys(qs.sel).length) : Object.values(qs.chk).some(Boolean)) && !(st.mode==="exam" && !st.done);
+  if (!visible) { chip.textContent = ""; chip.hidden = true; return; }
+  const sc = qScore(s, q); chip.hidden = false; chip.textContent = Math.round(sc*100) + " %"; chip.className = "score-chip " + (sc >= .75 ? "ok" : sc >= .4 ? "mid" : "ko");
+}
+function markDot(s, n){ const d = $(`[data-dot="${n}"]`); const q = allQs(s).find(x => x.n === n); if (d) d.classList.toggle("done", qTouched(s, q)); }
+function updateBilan(s){
+  const el = $("#bilan-" + s.id); if (!el) return; const st = sState(s.id);
+  const qs = allQs(s); const p = sujetProgress(s);
+  if (s.locked) { el.innerHTML = `<p class="eyebrow">Bilan du sujet</p><div class="row" style="justify-content:space-between"><h3 class="h2">Score disponible à l’ouverture du corrigé</h3><span class="muted">${p.done} / ${p.total} questions traitées</span></div><div class="bar"><i style="width:${p.pct}%"></i></div>`; return; }
+  const locked = st.mode==="exam" && !st.done;
+  const scores = qs.map(q => qScore(s, q)); const avg = scores.reduce((a,b)=>a+b,0) / qs.length; const note = Math.round(avg * 200) / 10;
+  const weak = qs.filter((q,i) => qTouched(s,q) && scores[i] < .5).map(q => q.n);
+  el.innerHTML = `<p class="eyebrow">Bilan du sujet</p>
+   <div class="row" style="justify-content:space-between"><h3 class="h2">${locked ? "Rends ta copie pour voir ton score" : `Estimation : <span class="mono">${fmt(note,1)} / 20</span>`}</h3><span class="muted">${p.done} / ${p.total} questions traitées</span></div>
+   <div class="bar"><i style="width:${locked?p.pct:Math.round(avg*100)}%"></i></div>
+   <p class="muted" style="font-size:.88rem">${locked ? "Le chrono tourne : traite toutes les questions puis clique sur « Rendre la copie »." : "Score calculé à partir des calculs justes, des sélections correctes et des éléments de corrigé que tu as cochés. C’est une auto-évaluation : ton professeur reste le correcteur."}${!locked && weak.length ? ` À retravailler : <b>${weak.join(", ")}</b>.` : ""}</p>`;
+}
+function tick(s){
+  clearInterval(TIMER); const st = sState(s.id); const c = $("#clock"); if (!c) return;
+  const draw = () => { let left = 3*3600*1000; if (st.start) left -= Date.now() - st.start; if (st.done) { c.textContent = "Terminé"; return; }
+    if (left <= 0) { left = 0; st.done = true; save(); clearInterval(TIMER); openSujet(s.id); toast("Temps écoulé : copie rendue"); return; }
+    const h = Math.floor(left/3600000), m = Math.floor(left/60000)%60, sec = Math.floor(left/1000)%60;
+    c.textContent = `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`; c.classList.toggle("low", left < 15*60000); };
+  draw(); if (st.start && !st.done) TIMER = setInterval(draw, 1000);
+}
+
+/* ===================== Calculs ===================== */
+const CALC = {current:null, type:"tout"};
+const PROD = [["CITROËN","AMI My AMI Tonic"],["Brasserie GOUDALE","fût de 30 L"],["E-DRAG’ON","VAE urbain"],["PYETA","pied de table Mikado"],["VIREVOLTE","parfum 50 ml"],["AIRSUB DRONE","prestation de comptage"]];
+const GEN = {
+ coef:{nom:"PV TTC (coefficient)", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(150,9000)/100); const k=pick([1.8,2,2.2,2.5,1.65]); const ans=r2(pa*k);
+   return {ctx:e, q:`Le prix d’achat HT d’un(e) ${p} est de ${fmt(pa)} €. L’entreprise applique un coefficient multiplicateur de ${fmt0(k)}. Calculez le prix de vente TTC.`, ans, u:"€", steps:[`PV TTC = PA HT × coefficient`,`PV TTC = ${fmt(pa)} × ${fmt0(k)} = ${fmt(ans)} €`]}; }},
+ ht:{nom:"TTC → HT", f:()=>{ const [e,p]=pick(PROD); const t=pick([20,20,20,5.5]); const ttc=r2(rnd(500,90000)/100); const ans=r2(ttc/(1+t/100));
+   return {ctx:e, q:`Un(e) ${p} est vendu(e) ${fmt(ttc)} € TTC (TVA ${fmt0(t)} %). Calculez le prix de vente HT.`, ans, u:"€", steps:[`PV HT = PV TTC ÷ (1 + taux de TVA)`,`PV HT = ${fmt(ttc)} ÷ ${fmt0(1+t/100)} = ${fmt(ans)} €`]}; }},
+ marge:{nom:"Marge unitaire", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(200,5000)/100); const pvht=r2(pa*(1+rnd(30,150)/100)); const ans=r2(pvht-pa);
+   return {ctx:e, q:`Pour un(e) ${p} : prix d’achat HT ${fmt(pa)} €, prix de vente HT ${fmt(pvht)} €. Calculez la marge unitaire.`, ans, u:"€", steps:[`Marge = PV HT − PA HT`,`Marge = ${fmt(pvht)} − ${fmt(pa)} = ${fmt(ans)} €`]}; }},
+ tmarque:{nom:"Taux de marque", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(200,5000)/100); const pvht=r2(pa*(1+rnd(25,140)/100)); const m=r2(pvht-pa); const ans=r2(m/pvht*100);
+   return {ctx:e, q:`Pour un(e) ${p} : PA HT ${fmt(pa)} €, PV HT ${fmt(pvht)} €. Calculez le taux de marque.`, ans, u:"%", steps:[`Marge = ${fmt(pvht)} − ${fmt(pa)} = ${fmt(m)} €`,`Taux de marque = marge ÷ PV HT × 100`,`= ${fmt(m)} ÷ ${fmt(pvht)} × 100 = ${fmt(ans)} %`]}; }},
+ tmarge:{nom:"Taux de marge", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(200,5000)/100); const pvht=r2(pa*(1+rnd(25,140)/100)); const m=r2(pvht-pa); const ans=r2(m/pa*100);
+   return {ctx:e, q:`Pour un(e) ${p} : PA HT ${fmt(pa)} €, PV HT ${fmt(pvht)} €. Calculez le taux de marge.`, ans, u:"%", steps:[`Marge = ${fmt(pvht)} − ${fmt(pa)} = ${fmt(m)} €`,`Taux de marge = marge ÷ PA HT × 100`,`= ${fmt(m)} ÷ ${fmt(pa)} × 100 = ${fmt(ans)} %`]}; }},
+ remise:{nom:"Prix remisé", f:()=>{ const [e,p]=pick(PROD); const pv=r2(rnd(300,20000)/100); const r=pick([5,10,15,20,25,30]); const ans=r2(pv*(1-r/100));
+   return {ctx:e, q:`Un(e) ${p} affiché(e) ${fmt(pv)} € TTC bénéficie d’une remise de ${r} %. Calculez le prix remisé TTC.`, ans, u:"€", steps:[`Prix remisé = prix × (1 − taux de remise)`,`= ${fmt(pv)} × ${fmt0(1-r/100)} = ${fmt(ans)} €`]}; }},
+ fourn:{nom:"Commande fournisseur", f:()=>{ const pu=r2(rnd(3500,7000)/100); const q=rnd(10,30); const seuil=pick([300,800,1000,1500]); const r=pick([5,10]); const brut=r2(pu*q); const ans= brut>=seuil ? r2(brut*(1-r/100)) : brut;
+   return {ctx:"PYETA · achat d’acier", q:`Le fournisseur de tubes d’acier facture ${fmt(pu)} € HT le mètre et accorde ${r} % de remise à partir de ${fmt0(seuil)} € de commande. Calculez le montant HT net d’une commande de ${q} mètres.`, ans, u:"€", steps:[`Montant brut = ${q} × ${fmt(pu)} = ${fmt(brut)} €`, brut>=seuil ? `${fmt(brut)} ≥ ${fmt0(seuil)} € → remise : ${fmt(brut)} × ${fmt0(1-r/100)} = ${fmt(ans)} €` : `${fmt(brut)} < ${fmt0(seuil)} € → pas de remise : ${fmt(ans)} €`]}; }},
+ evol:{nom:"Taux d’évolution", f:()=>{ const v1=rnd(800,20000); const v2=Math.round(v1*(1+rnd(-35,120)/100)); const lab=pick(["Le nombre d’AMI vendues","Le CA des clients professionnels (€)","Le nombre d’abonnés Instagram","Le nombre de visiteurs du stand"]); const a1=rnd(2019,2023); const ans=r2((v2-v1)/v1*100);
+   return {ctx:"Analyse de résultats", q:`${lab} passe de ${fmt0(v1)} en ${a1} à ${fmt0(v2)} en ${a1+1}. Calculez le taux d’évolution.`, ans, u:"%", steps:[`Taux d’évolution = (valeur d’arrivée − valeur de départ) ÷ valeur de départ × 100`,`= (${fmt0(v2)} − ${fmt0(v1)}) ÷ ${fmt0(v1)} × 100 = ${fmt(ans)} %`]}; }},
+ real:{nom:"Taux de réalisation", f:()=>{ const obj=pick([20,40,60,80,150,4300,9000,12000]); const res=Math.round(obj*(rnd(55,140)/100)); const lab=pick(["contacts utiles","rendez-vous","ventes","€ de chiffre d’affaires"]); const ans=r2(res/obj*100);
+   return {ctx:"Tableau de bord", q:`L’objectif était de ${fmt0(obj)} ${lab}. Le résultat est de ${fmt0(res)}. Calculez le taux de réalisation de l’objectif.`, ans, u:"%", steps:[`Taux de réalisation = résultat ÷ objectif × 100`,`= ${fmt0(res)} ÷ ${fmt0(obj)} × 100 = ${fmt(ans)} %`, ans>=100?`→ objectif atteint`:`→ objectif non atteint (écart ${fmt0(res-obj)})`]}; }},
+ prosp:{nom:"Ratios de prospection", f:()=>{ const ap=pick([80,120,150,200,250]); const ab=Math.round(ap*rnd(50,80)/100); const rdv=Math.round(ab*rnd(15,45)/100); const v=Math.max(1,Math.round(rdv*rnd(25,70)/100));
+   const which=pick(["ab","rdv","v","glob"]); let q,ans,steps;
+   const base=`Opération de phoning : ${ap} appels passés, ${ab} appels aboutis, ${rdv} rendez-vous, ${v} ventes.`;
+   if(which==="ab"){ans=r2(ab/ap*100);q=base+" Calculez le taux d’appels aboutis.";steps=[`= appels aboutis ÷ appels passés × 100`,`= ${ab} ÷ ${ap} × 100 = ${fmt(ans)} %`];}
+   if(which==="rdv"){ans=r2(rdv/ab*100);q=base+" Calculez le taux de prise de RDV (sur les appels aboutis).";steps=[`= RDV ÷ appels aboutis × 100`,`= ${rdv} ÷ ${ab} × 100 = ${fmt(ans)} %`];}
+   if(which==="v"){ans=r2(v/rdv*100);q=base+" Calculez le taux de transformation des RDV en ventes.";steps=[`= ventes ÷ RDV × 100`,`= ${v} ÷ ${rdv} × 100 = ${fmt(ans)} %`];}
+   if(which==="glob"){ans=r2(v/ap*100);q=base+" Calculez le taux de transformation global (ventes / appels passés).";steps=[`= ventes ÷ appels passés × 100`,`= ${v} ÷ ${ap} × 100 = ${fmt(ans)} %`];}
+   return {ctx:"Prospection téléphonique", q, ans, u:"%", steps}; }},
+ cout:{nom:"Coût d’un salon", f:()=>{ const stand=rnd(1200,4000); const pers=rnd(2,4); const nuits=rnd(1,3); const hotel=rnd(60,110); const repas=rnd(15,25); const nrep=(nuits+1)*2; const km=rnd(80,250); const sal=pers*rnd(300,550);
+   const ans=r2(stand+pers*nuits*hotel+pers*nrep*repas+km+sal);
+   return {ctx:"Salon professionnel", q:`Stand ${fmt0(stand)} € ; ${pers} commerciaux ; ${nuits} nuit(s) d’hôtel à ${hotel} € par personne ; ${nrep} repas par personne à ${repas} € ; frais kilométriques ${km} € ; salaires ${fmt0(sal)} €. Calculez le coût total du salon.`, ans, u:"€", steps:[`Hôtel = ${pers} × ${nuits} × ${hotel} = ${fmt0(pers*nuits*hotel)} €`,`Repas = ${pers} × ${nrep} × ${repas} = ${fmt0(pers*nrep*repas)} €`,`Total = ${fmt0(stand)} + ${fmt0(pers*nuits*hotel)} + ${fmt0(pers*nrep*repas)} + ${km} + ${fmt0(sal)} = ${fmt(ans)} €`]}; }},
+ renta:{nom:"Rentabilité d’une opération", f:()=>{ const ca=rnd(40,150)*100; const tm=pick([30,40,50,60]); const cout=rnd(15,70)*100+rnd(0,99); const m=r2(ca*tm/100); const ans=r2(m-cout);
+   return {ctx:"Bilan d’opération", q:`Une opération commerciale a généré ${fmt0(ca)} € HT de CA avec un taux de marque de ${tm} %. Elle a coûté ${fmt0(cout)} €. Calculez le résultat de l’opération.`, ans, u:"€", steps:[`Marge = CA HT × taux de marque = ${fmt0(ca)} × ${tm} % = ${fmt(m)} €`,`Résultat = marge − coût = ${fmt(m)} − ${fmt0(cout)} = ${fmt(ans)} €`, ans>=0?"→ opération rentable":"→ opération non rentable"]}; }},
+ engage:{nom:"Réseaux sociaux", f:()=>{ const vues=rnd(800,6000); const l=rnd(20,300),c=rnd(5,80),p=rnd(5,90); const clics=rnd(30,400); const which=pick(["eng","clic"]);
+   if(which==="eng"){const i=l+c+p; const ans=r2(i/vues*100); return {ctx:"Story / publication", q:`Une publication obtient ${vues} vues, ${l} likes, ${c} commentaires et ${p} partages. Calculez le taux d’engagement (interactions / vues).`, ans, u:"%", steps:[`Interactions = ${l} + ${c} + ${p} = ${i}`,`Taux d’engagement = ${i} ÷ ${vues} × 100 = ${fmt(ans)} %`]};}
+   const ans=r2(clics/vues*100); return {ctx:"Story / publication", q:`Une story a été vue ${vues} fois et a généré ${clics} clics sur le bouton d’action. Calculez le taux de clics.`, ans, u:"%", steps:[`Taux de clics = clics ÷ vues × 100`,`= ${clics} ÷ ${vues} × 100 = ${fmt(ans)} %`]}; }},
+ part:{nom:"Part dans un total", f:()=>{ const a=rnd(20,3000), b=rnd(20,3000), c=rnd(20,3000); const t=a+b+c; const ans=r2(a/t*100);
+   return {ctx:"Répartition des ventes", q:`Ventes par canal : concessions ${fmt0(a)}, site internet ${fmt0(b)}, partenaires ${fmt0(c)}. Calculez la part des concessions.`, ans, u:"%", steps:[`Total = ${fmt0(a)} + ${fmt0(b)} + ${fmt0(c)} = ${fmt0(t)}`,`Part = ${fmt0(a)} ÷ ${fmt0(t)} × 100 = ${fmt(ans)} %`]}; }},
+ prev:{nom:"Prévision des ventes", f:()=>{ const v=rnd(1000,6000); const t=r2(rnd(-1500,4000)/100); const ans=Math.round(v*(1+t/100));
+   return {ctx:"Objectifs commerciaux", q:`Les ventes de l’an dernier sont de ${fmt0(v)} unités. On prévoit une évolution de ${fmt(t)} %. Calculez la prévision (arrondie à l’unité).`, ans, u:"unités", tol:1.01, steps:[`Prévision = ventes × (1 + taux)`,`= ${fmt0(v)} × ${fmt0(r2(1+t/100))} ≈ ${fmt0(ans)} unités`]}; }}
+};
+const FORMULES = [
+ ["PV TTC","PA HT × coefficient"],["PV HT","PV TTC ÷ 1,20"],["Marge unitaire","PV HT − PA HT"],["Taux de marque","marge ÷ PV HT × 100"],["Taux de marge","marge ÷ PA HT × 100"],
+ ["Prix remisé","prix × (1 − remise)"],["Taux d’évolution","(V2 − V1) ÷ V1 × 100"],["Taux de réalisation","résultat ÷ objectif × 100"],["Taux de transformation","étape ÷ étape précédente × 100"],
+ ["Marge globale","CA HT × taux de marque"],["Résultat d’une opération","marge − coût de l’opération"],["Taux d’engagement","interactions ÷ vues (ou abonnés) × 100"],["Taux de clics","clics ÷ vues × 100"],["Part","élément ÷ total × 100"]
+];
+$("#formules").innerHTML = FORMULES.map(([a,b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join("");
+$("#calc-types").innerHTML = `<button class="chip" data-t="tout" aria-pressed="true">Tout mélanger</button>` + Object.entries(GEN).map(([k,g]) => `<button class="chip" data-t="${k}" aria-pressed="false">${g.nom}</button>`).join("");
+$("#calc-types").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b) return; CALC.type = b.dataset.t; $$("#calc-types .chip").forEach(c => c.setAttribute("aria-pressed", c === b)); newExo(); });
+function drawStats(){ $("#st-ok").textContent = STATE.calc.ok; $("#st-total").textContent = STATE.calc.total; $("#st-streak").textContent = STATE.calc.streak; }
+function newExo(){
+  const k = CALC.type === "tout" ? pick(Object.keys(GEN)) : CALC.type; const ex = GEN[k].f(); ex.k = k; ex.tries = 0; ex.done = false; CALC.current = ex;
+  $("#exo").innerHTML = `<p class="ctxline">${esc(GEN[k].nom)} · ${esc(ex.ctx)}</p><p class="enonce">${esc(ex.q)}</p>
+   <form class="answer-row" id="calc-form"><label class="muted" for="calc-in">Ta réponse</label><input id="calc-in" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="mono">${esc(ex.u)}</span><button class="btn primary">Valider</button><button type="button" class="btn" id="calc-show">Voir la solution</button><button type="button" class="btn ghost" id="calc-next">Suivant →</button></form>
+   <p class="feedback" id="calc-fb" aria-live="polite"></p><div class="steps" id="calc-steps" hidden></div>`;
+  $("#calc-form").onsubmit = e => { e.preventDefault(); checkExo(); };
+  $("#calc-show").onclick = () => showSteps(true);
+  $("#calc-next").onclick = newExo;
+  drawStats();
+}
+function showSteps(gaveUp){ const ex = CALC.current; const s = $("#calc-steps"); s.hidden = false; s.innerHTML = ex.steps.map(x => `<div>${esc(x)}</div>`).join("") + `<div><b>Réponse : ${ex.u==="unités"?fmt0(ex.ans):fmt(ex.ans)} ${esc(ex.u)}</b></div>`;
+  if (gaveUp && !ex.done) { ex.done = true; STATE.calc.total++; STATE.calc.streak = 0; save(); drawStats(); } }
+function checkExo(){
+  const ex = CALC.current; const v = parseNum($("#calc-in").value); const fb = $("#calc-fb");
+  if (isNaN(v)) { fb.textContent = "Entre un nombre."; fb.className = "feedback ko"; return; }
+  const tol = ex.tol ?? 0.011; const ok = Math.abs(v - ex.ans) <= tol;
+  if (ok) { fb.textContent = "Juste ! Vérifie ta rédaction avec la solution."; fb.className = "feedback ok"; if (!ex.done) { ex.done = true; STATE.calc.ok++; STATE.calc.total++; STATE.calc.streak++; save(); } showSteps(false); }
+  else { ex.tries++; const pctTrap = ex.u === "%" && Math.abs(v*100 - ex.ans) < 0.05; fb.className = "feedback ko";
+    fb.textContent = pctTrap ? "Presque : n’oublie pas de multiplier par 100." : (ex.tries >= 2 ? "Encore faux. Regarde la solution détaillée." : "Pas encore. Relis la formule dans le formulaire et réessaie.");
+    if (ex.tries >= 2) showSteps(true); }
+  drawStats();
+}
+
+/* ===================== Ateliers ===================== */
+const PLAN = {
+  rdv:{titre:"Prise de rendez-vous (prospection)", steps:[
+   ["Saluer et vérifier l’interlocuteur","« Bonjour, je suis bien au restaurant L’Arborescence ? Pourrais-je parler au responsable ? »"],
+   ["Se présenter","« Camille Laplume, commerciale de la brasserie GOUDALE à Arques. »"],
+   ["Annoncer le motif avec une accroche","« Je vous appelle car le sans-alcool progresse de 16 % et nous lançons une bière cerise haut de gamme. »"],
+   ["Questionner pour découvrir le besoin","« Proposez-vous déjà des bières sans alcool à la pression ? »"],
+   ["Argumenter brièvement","« Fût bio, livré en 2 jours, prix de lancement à 1 € HT le litre. »"],
+   ["Proposer le rendez-vous avec une alternative","« Je peux passer vous la faire goûter mardi à 10 h ou jeudi à 15 h ? »"],
+   ["Traiter les objections","« Je comprends que vous ayez déjà un fournisseur, c’est justement pour compléter votre carte… »"],
+   ["Reformuler et confirmer","« Nous disons donc jeudi 15 h à Croix, je vous envoie une confirmation par e-mail. »"],
+   ["Prendre congé","« Merci pour votre accueil, bonne journée ! »"]]},
+  relance:{titre:"Relance après un courriel ou un SMS", steps:[
+   ["Saluer et vérifier l’interlocuteur","« Bonjour, Madame Poitevin ? »"],
+   ["Se présenter","« Ici le service commercial d’E-DRAG’ON à Calais. »"],
+   ["Rappeler le premier contact","« Nous vous avons envoyé la semaine dernière un courriel sur la prime à la conversion. »"],
+   ["Vérifier la réception et l’intérêt","« Avez-vous pu le lire ? Votre vélo actuel vous convient-il toujours ? »"],
+   ["Relancer avec l’argument clé","« Jusqu’à 500 € de reprise pour votre ancien vélo, jusqu’au 15 juillet. »"],
+   ["Proposer l’action (essai, RDV, commande)","« Venez l’essayer sur notre piste : samedi matin ou mercredi après-midi ? »"],
+   ["Traiter les objections","« Le prix vous inquiète ? Avec les aides cumulées… »"],
+   ["Reformuler et confirmer","« Samedi 10 h au showroom, 54 rue du Virval. »"],
+   ["Prendre congé","« Merci et à samedi ! »"]]}
+};
+const SONCAS = [
+ ["Le pied Mikado supporte jusqu’à 500 kg en version XXL : votre table ne bougera jamais.","Sécurité","La robustesse rassure : mobile Sécurité."],
+ ["Avec le bonus écologique, l’AMI ne vous coûte que 6 890 €, ou 19 € par mois.","Argent","Prix, aides, économies : mobile Argent."],
+ ["Une recette inédite de notre maître brasseur, en édition limitée.","Nouveauté","Innovation, exclusivité : mobile Nouveauté."],
+ ["Le fût est livré sous 2 jours avec un raccordement universel : rien à installer.","Confort","Facilité, gain de temps : mobile Confort."],
+ ["Vos clients verront que vous êtes la seule boutique de la ville à proposer cette marque.","Orgueil","Prestige, fierté, se démarquer : mobile Orgueil."],
+ ["Nos parfums sont 99,9 % naturels, vegan et fabriqués près de Grasse.","Environnement","Écologie, local, éthique : mobile Environnement (le E de SONCASE)."],
+ ["Votre conseillère vous accompagne en moyenne pendant 12 ans, à deux pas de chez vous.","Sympathie","Relation humaine, proximité : mobile Sympathie."],
+ ["Le drone survole vos cultures sans abîmer les sols et réduit vos achats d’engrais.","Argent","Réduire les dépenses de l’exploitant : mobile Argent (et Environnement en second)."],
+ ["Le marquage antivol Paravol est offert avec votre VAE.","Sécurité","Protection contre le vol : mobile Sécurité."],
+ ["Notre AMI est fermée et chauffée : votre enfant est protégé, contrairement au scooter.","Sécurité","Protection d’un proche : mobile Sécurité."],
+ ["Pieds démontables livrés en kit : stockage et transport faciles pour votre atelier.","Confort","Praticité : mobile Confort."],
+ ["Avec notre kit d’implantation, la PLV, les testeurs et les échantillons sont offerts.","Argent","Pas de frais de mise en place : mobile Argent."],
+ ["Gagnez un post avec l’influenceuse déco n° 1 en France !","Orgueil","Visibilité, notoriété personnelle : mobile Orgueil."],
+ ["Énergie 100 % verte et cartons recyclés dans notre atelier de Tuffalun.","Environnement","Démarche éco-responsable : mobile Environnement."]
+];
+const OBJ = [
+ ["« C’est trop cher. »","Reformulation + compensation","« Vous trouvez le prix élevé, je comprends. En contrepartie, l’entretien est offert pendant 2 ans et vous bénéficiez de la prime à la conversion. »",["Reformulation + compensation","Boomerang","Report"]],
+ ["« Je n’ai pas le temps de vous recevoir. »","Boomerang (retournement)","« C’est justement pour vous faire gagner du temps : 15 minutes suffisent pour voir comment réduire vos coûts d’irrigation. »",["Boomerang (retournement)","Témoignage","Questionnement"]],
+ ["« J’ai déjà un fournisseur. »","Questionnement","« Très bien. Qu’est-ce qui vous plaît chez lui ? Proposez-vous déjà une bière sans alcool haut de gamme ? »",["Questionnement","Fractionnement du prix","Report"]],
+ ["« L’autonomie de 75 km, ce n’est pas assez. »","Reformulation + preuve","« Vous craignez de manquer d’autonomie. 75 km couvrent largement les trajets quotidiens, et la recharge se fait en 3 h sur une prise classique. »",["Reformulation + preuve","Boomerang","Oui, mais… (compensation)"]],
+ ["« Je ne connais pas votre marque. »","Témoignage / référence","« Nous travaillons déjà avec Siemens et La Ferme Angevine. Je peux vous mettre en relation avec un client proche de chez vous. »",["Témoignage / référence","Fractionnement du prix","Report"]],
+ ["« 8 € par mois, c’est encore une dépense de plus. »","Fractionnement du prix","« Cela représente moins de 27 centimes par jour pour être couvert en cas de blessure. »",["Fractionnement du prix","Questionnement","Boomerang"]],
+ ["« Je dois en parler à mon associé. »","Report (différer) + engagement","« Bien sûr. Je vous envoie la documentation aujourd’hui et je vous rappelle jeudi pour en discuter ensemble ? »",["Report (différer) + engagement","Compensation","Témoignage / référence"]],
+ ["« Votre parfum, je ne peux pas le sentir sur Internet. »","Oui, mais… (compensation)","« C’est vrai, et c’est pour cela que le kit contient des testeurs et 100 touches à sentir pour vos clients. »",["Oui, mais… (compensation)","Questionnement","Fractionnement du prix"]]
+];
+const SWOT = [
+ ["AIRSUB DRONE est certifiée par la DGAC.","Force"],["L’entreprise ne compte que 5 salariés.","Faiblesse"],["Les agriculteurs cherchent à réduire leurs coûts de production.","Opportunité"],
+ ["La CNIL encadre l’usage des drones équipés de caméras.","Menace"],["KRONENBOURG détient près de 60 % du marché de la bière sans alcool.","Menace"],["Le CA des bières sans alcool a progressé de 16,2 % en 2022.","Opportunité"],
+ ["PYETA est le seul fabricant à proposer des pieds pour tables de 4 m.","Force"],["Les prestations peuvent être annulées selon la météo.","Faiblesse"],["60 % des Françaises achètent des cosmétiques bio.","Opportunité"],
+ ["Le prix freine plus de 60 % des consommatrices de cosmétiques bio.","Menace"],["VIREVOLTE est une marque encore méconnue.","Faiblesse"],["Un décret rend l’assurance obligatoire pour les trottinettes électriques.","Opportunité"],
+ ["Les volumes de bière sans alcool ont baissé de 11,8 %.","Menace"],["Le showroom E-DRAG’ON dispose d’une piste d’essai de 2 km.","Force"],["L’inflation rend les entreprises plus attentives à leurs dépenses.","Menace"],["Les parfums VIREVOLTE sont certifiés Cosmos Natural.","Force"]
+];
+const FICHE = [
+ ["Raison sociale / enseigne",1],["Nom et prénom du contact",1],["Fonction du contact",1],["Téléphone et e-mail",1],["Adresse / ville",1],["Secteur d’activité",1],
+ ["Fournisseur actuel",1],["Produits ou services qui intéressent",1],["Niveau d’intérêt (chaud, tiède, froid)",1],["Suite à donner et date de relance",1],["Consentement RGPD",1],["Nom du commercial et date du contact",1],
+ ["Religion du contact",0],["Numéro de sécurité sociale",0],["Opinions politiques",0],["Photo d’identité",0],["Situation médicale",0],["Mot de passe de son site",0]
+];
+const AT = {plan:"Plan d’appel", soncas:"Mobiles d’achat", obj:"Objections", swot:"Forces / menaces", sms:"SMS marketing", fiche:"Fiche contact"};
+$("#at-nav").innerHTML = Object.entries(AT).map(([k,v],i) => `<button class="chip" data-at="${k}" aria-pressed="${i===0}">${v}</button>`).join("");
+$("#at-nav").addEventListener("click", e => { const b = e.target.closest("[data-at]"); if (!b) return; $$("#at-nav .chip").forEach(c => c.setAttribute("aria-pressed", c===b)); openAtelier(b.dataset.at); });
+function openAtelier(k){ ({plan:atPlan, soncas:atSoncas, obj:atObj, swot:atSwot, sms:atSms, fiche:atFiche})[k](); }
+
+function atPlan(kind = "rdv"){
+  const P = PLAN[kind]; let order = shuffle(P.steps.map((_,i)=>i));
+  const box = $("#atelier");
+  const draw = (checked) => {
+    box.innerHTML = `<div class="row" style="justify-content:space-between"><h2 class="h2">Remets le plan d’appel dans l’ordre</h2>
+      <div class="seg" role="group"><button data-k="rdv" aria-pressed="${kind==="rdv"}">Prise de RDV</button><button data-k="relance" aria-pressed="${kind==="relance"}">Relance</button></div></div>
+      <p class="muted">${P.titre}. Utilise les flèches pour déplacer les étapes, puis vérifie.</p>
+      <ol class="order-list">${order.map((idx,pos) => `<li class="${checked ? (idx===pos?"good":"bad") : ""}"><span>${esc(P.steps[idx][0])}${checked?`<small>${esc(P.steps[idx][1])}</small>`:""}</span><button class="mv" data-up="${pos}" aria-label="Monter">↑</button><button class="mv" data-down="${pos}" aria-label="Descendre">↓</button></li>`).join("")}</ol>
+      <div class="row"><button class="btn primary" data-go="check">Vérifier</button><button class="btn" data-go="sol">Voir l’ordre attendu</button><button class="btn ghost" data-go="new">Mélanger</button></div>
+      ${checked ? `<p class="feedback ${order.every((v,i)=>v===i)?"ok":"ko"}">${order.filter((v,i)=>v===i).length} / ${order.length} étapes bien placées.</p>` : ""}`;
+  };
+  draw(false);
+  box.onclick = e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.k) { atPlan(b.dataset.k); return; }
+    if (b.dataset.up) { const i = +b.dataset.up; if (i>0) [order[i-1],order[i]] = [order[i],order[i-1]]; draw(false); return; }
+    if (b.dataset.down) { const i = +b.dataset.down; if (i<order.length-1) [order[i+1],order[i]] = [order[i],order[i+1]]; draw(false); return; }
+    if (b.dataset.go==="check") draw(true);
+    if (b.dataset.go==="sol") { order = P.steps.map((_,i)=>i); draw(true); }
+    if (b.dataset.go==="new") { order = shuffle(order); draw(false); } };
+}
+function quizEngine(title, intro, items, render){
+  let list = shuffle(items), i = 0, score = 0; const box = $("#atelier");
+  const draw = () => {
+    if (i >= list.length) { box.innerHTML = `<h2 class="h2">${title}</h2><p class="feedback ${score>=list.length*.7?"ok":"ko"}">Score : ${score} / ${list.length}</p><div class="row"><button class="btn primary" data-go="again">Recommencer</button></div>`; box.onclick = e => { if (e.target.closest("[data-go]")) quizEngine(title,intro,items,render); }; return; }
+    const it = list[i]; const r = render(it);
+    box.innerHTML = `<div class="row" style="justify-content:space-between"><h2 class="h2">${title}</h2><span class="muted mono">${i+1} / ${list.length} · ${score} pt</span></div><p class="muted">${intro}</p>
+      <div class="quiz-card"><p class="quote">${esc(r.prompt)}</p><div class="opts">${r.opts.map(o => `<button data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div><div data-ex hidden></div></div>`;
+    box.onclick = e => { const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.o !== undefined && !box.dataset.answered) { box.dataset.answered = "1"; const ok = b.dataset.o === r.good; if (ok) score++;
+        $$(".opts button", box).forEach(x => { if (x.dataset.o === r.good) x.classList.add("good"); else if (x === b) x.classList.add("bad"); });
+        const ex = $("[data-ex]", box); ex.hidden = false; ex.innerHTML = `<div class="explain">${r.explain}</div><div class="row" style="margin-top:10px"><button class="btn primary" data-go="next">Suivant →</button></div>`; }
+      if (b.dataset.go === "next") { delete box.dataset.answered; i++; draw(); } };
+  };
+  delete box.dataset.answered; draw();
+}
+const atSoncas = () => quizEngine("Quel mobile d’achat ?", "SONCASE : Sécurité, Orgueil, Nouveauté, Confort, Argent, Sympathie, Environnement. Quel mobile cet argument active-t-il ?", SONCAS,
+  it => ({prompt: it[0], opts: ["Sécurité","Orgueil","Nouveauté","Confort","Argent","Sympathie","Environnement"], good: it[1], explain: esc(it[2]) + " Structure ton argument en CAP : Caractéristique → Avantage pour le client → Preuve."}));
+const atObj = () => quizEngine("Traiter l’objection", "Choisis la technique la plus adaptée. Lis ensuite la réponse modèle.", OBJ,
+  it => ({prompt: it[0], opts: shuffle(it[3]), good: it[1], explain: `<b>Réponse modèle :</b> ${esc(it[2])}`}));
+const atSwot = () => quizEngine("Force, faiblesse, opportunité ou menace ?", "Forces et faiblesses = interne à l’entreprise. Opportunités et menaces = externe (marché, concurrence, lois, économie).", SWOT,
+  it => ({prompt: it[0], opts: ["Force","Faiblesse","Opportunité","Menace"], good: it[1], explain: (it[1]==="Force"||it[1]==="Faiblesse") ? "Cela dépend de l’entreprise elle-même : c’est <b>interne</b>." : "Cela vient de l’environnement, l’entreprise ne le contrôle pas : c’est <b>externe</b>."}));
+
+function atSms(){
+  const box = $("#atelier");
+  const sample = "AXA Sartrouville : votre ado roule en TROTTINETTE ? Assurance OBLIGATOIRE dès 8€/mois, vol + blessures inclus. Infos : axa.fr/edpm STOP 36xxx";
+  box.innerHTML = `<h2 class="h2">Rédige un SMS marketing</h2>
+   <p class="muted">Contexte AXA (sujet 6) : proposer l’assurance EDPM aux clients de l’agence. 160 caractères maximum, mention STOP comprise.</p>
+   <div class="row" style="align-items:flex-start;gap:24px">
+     <div style="display:grid;gap:8px;flex:1;min-width:260px">
+       <label for="sms-in" class="muted">Ton SMS</label>
+       <textarea id="sms-in" class="copy" style="min-height:120px" maxlength="320"></textarea>
+       <div class="row"><span class="mono" id="sms-count">0 / 160</span><button class="btn sm" id="sms-ex">Voir un exemple</button></div>
+       <ul class="checks" id="sms-checks"></ul>
+     </div>
+     <div class="sms-phone" aria-label="Aperçu"><span class="muted" style="font-size:.78rem">Aperçu</span><div class="bubble" id="sms-prev"></div></div>
+   </div>`;
+  const inp = $("#sms-in");
+  const crit = [
+    ["≤ 160 caractères", t => t.length > 0 && t.length <= 160],
+    ["Émetteur identifiable au début (AXA…)", t => /^\s*\S*axa/i.test(t)],
+    ["Au moins un mot-clé en MAJUSCULES", t => /\b[A-ZÀÂÉÈÊÎÔÛÇ]{4,}\b/.test(t.replace(/\bAXA\b|\bSTOP\b|\bEDPM\b/g,""))],
+    ["Une offre chiffrée (€ ou %)", t => /\d+\s*(€|%|euros?)/i.test(t)],
+    ["Un lien ou un contact", t => /(https?:\/\/|www\.|\.[a-z]{2,}\/|\.fr|\.com|\b0\d[\s.]?\d{2})/i.test(t)],
+    ["Mention STOP + numéro", t => /STOP\s*\d|STOP\s*\w*\d/.test(t)]
+  ];
+  const upd = () => { const t = inp.value; $("#sms-count").textContent = `${t.length} / 160`; $("#sms-count").style.color = t.length > 160 ? "var(--red)" : ""; $("#sms-prev").textContent = t || "…";
+    $("#sms-checks").innerHTML = crit.map(([l,f]) => `<li class="${f(t)?"on":""}">${l}</li>`).join(""); };
+  inp.oninput = upd; $("#sms-ex").onclick = () => { inp.value = sample; upd(); }; box.onclick = null; upd();
+}
+function atFiche(){
+  const box = $("#atelier"); const items = shuffle(FICHE); const sel = {};
+  const draw = (checked) => {
+    box.innerHTML = `<h2 class="h2">Compose une fiche contact</h2><p class="muted">Sélectionne les rubriques à faire figurer sur une fiche contact de salon. Attention au RGPD : on ne collecte que des données utiles et non sensibles.</p>
+     <div class="fc-grid">${items.map((it,i) => { let cls = ""; if (checked) cls = it[1] ? (sel[i] ? "good" : "miss") : (sel[i] ? "bad" : ""); return `<label class="fc-field ${cls}"><input type="checkbox" data-i="${i}" ${sel[i]?"checked":""}><span>${esc(it[0])}</span></label>`; }).join("")}</div>
+     <div class="row"><button class="btn primary" data-go="check">Vérifier</button><button class="btn ghost" data-go="reset">Recommencer</button></div>
+     ${checked ? (() => { const good = items.filter((it,i)=>it[1]&&sel[i]).length, need = items.filter(it=>it[1]).length, bad = items.filter((it,i)=>!it[1]&&sel[i]).length;
+       return `<p class="feedback ${good===need&&!bad?"ok":"ko"}">${good} / ${need} rubriques utiles · ${bad} donnée(s) interdite(s) ou inutile(s).</p><p class="explain">Une fiche contact s’organise en 4 blocs : <b>identification</b> (qui ?), <b>qualification</b> (son activité, son fournisseur), <b>besoins et intérêt</b>, <b>suite à donner</b> (relance, RDV, devis) + consentement RGPD. En orange : rubriques oubliées.</p>`; })() : ""}`;
+  };
+  draw(false);
+  box.onchange = e => { if (e.target.dataset.i !== undefined) sel[e.target.dataset.i] = e.target.checked; };
+  box.onclick = e => { const b = e.target.closest("[data-go]"); if (!b) return; if (b.dataset.go==="check") draw(true); else { Object.keys(sel).forEach(k=>delete sel[k]); draw(false); } };
+}
+
+/* ===================== Notions ===================== */
+const NOTIONS = [
+ ["Prospection","Prospection","Recherche de nouveaux clients (prospects) pour développer le chiffre d’affaires et compenser la perte de clients."],
+ ["Suspect / prospect","Prospection","Suspect : personne qui pourrait être intéressée. Prospect : personne ciblée et qualifiée, susceptible de devenir cliente."],
+ ["Fichier prospects","Prospection","Base de données de contacts à démarcher (identité, coordonnées, critères de qualification)."],
+ ["Qualifier un fichier","Prospection","Compléter et mettre à jour les informations des contacts pour repérer les plus intéressants."],
+ ["Ciblage / segmentation","Prospection","Découper le marché en groupes homogènes et choisir ceux à prospecter en priorité."],
+ ["Zone de chalandise","Prospection","Zone géographique d’où vient l’essentiel de la clientèle d’un point de vente."],
+ ["Phoning","Prospection","Prospection par téléphone, souvent pour obtenir un rendez-vous."],
+ ["Plan d’appel","Prospection","Trame structurée d’un appel : présentation, accroche, découverte, proposition, objections, conclusion."],
+ ["Barrage secrétaire","Prospection","Filtrage par un(e) assistant(e) avant d’atteindre le décideur."],
+ ["E-mailing / mailing","Prospection","Envoi de messages commerciaux par courriel / par courrier à une liste de contacts."],
+ ["SMS marketing","Prospection","Message court (160 caractères max) à fort taux de lecture ; doit contenir l’émetteur et la mention STOP."],
+ ["Street marketing","Prospection","Action commerciale dans la rue ou un lieu de passage pour aller au contact des prospects."],
+ ["Prescripteur","Prospection","Personne qui influence l’achat sans acheter elle-même (architecte, influenceur, ado pour ses parents…)."],
+ ["Recommandation / parrainage","Prospection","Un client satisfait fournit des contacts ou recommande l’entreprise."],
+ ["B2B / B2C","Marché","B2B : vente entre entreprises. B2C : vente d’une entreprise à des particuliers."],
+ ["CHR","Marché","Cafés, Hôtels, Restaurants : circuit de distribution hors domicile."],
+ ["GMS","Marché","Grandes et Moyennes Surfaces (hypermarchés, supermarchés)."],
+ ["Veille commerciale","Marché","Surveillance régulière du marché, des concurrents et des tendances."],
+ ["Diagnostic SWOT","Marché","Forces / faiblesses (interne) et opportunités / menaces (externe) d’une entreprise."],
+ ["Avantage concurrentiel","Marché","Ce qui distingue l’entreprise de ses concurrents aux yeux du client."],
+ ["Premiumisation","Marché","Montée en gamme d’un produit ou d’un marché (prix et qualité plus élevés)."],
+ ["Omnicanal","Marché","Le client passe librement d’un canal à l’autre (site, magasin, réseaux) dans un même parcours."],
+ ["Marketplace","Marché","Place de marché en ligne qui met en relation vendeurs et acheteurs (ex. ANKORSTORE en B2B)."],
+ ["Drive-to-store","Marché","Utiliser le digital pour générer des visites en magasin."],
+ ["SIC","Outils","Système d’Information Commercial : ensemble des données clients, prospects et ventes exploitées par l’entreprise."],
+ ["CRM","Outils","Logiciel de gestion de la relation client qui centralise contacts, historiques et relances."],
+ ["RGPD","Outils","Règlement sur la protection des données : consentement, données utiles uniquement, droit d’accès et de suppression."],
+ ["Fiche contact","Outils","Document de collecte : identification, qualification, besoins, suite à donner."],
+ ["Tableau de bord","Outils","Ensemble d’indicateurs pour suivre l’atteinte des objectifs et réagir."],
+ ["Taux de réalisation (R/O)","Indicateurs","Résultat ÷ objectif × 100."],
+ ["Taux de transformation","Indicateurs","Part des contacts qui passent à l’étape suivante (RDV, vente) : étape ÷ étape précédente × 100."],
+ ["Taux d’engagement","Indicateurs","Interactions (likes, commentaires, partages) ÷ vues ou abonnés × 100."],
+ ["Rentabilité d’une opération","Indicateurs","Marge générée (CA × taux de marque) − coûts de l’opération."],
+ ["Taux de marque","Indicateurs","Marge ÷ prix de vente HT × 100."],
+ ["Taux de marge","Indicateurs","Marge ÷ prix d’achat HT × 100."],
+ ["Coefficient multiplicateur","Indicateurs","Nombre par lequel on multiplie le PA HT pour obtenir le PV TTC."],
+ ["Objectif quantitatif / qualitatif","Indicateurs","Quantitatif : chiffré (contacts, RDV, CA). Qualitatif : image, notoriété, informations collectées."],
+ ["SONCASE","Vente","Mobiles d’achat : Sécurité, Orgueil, Nouveauté, Confort, Argent, Sympathie, Environnement."],
+ ["Méthode CAP","Vente","Argument structuré : Caractéristique → Avantage pour le client → Preuve."],
+ ["Objection","Vente","Frein exprimé par le client ; se traite par reformulation puis réponse adaptée."],
+ ["Pitch","Vente","Présentation courte et percutante : qui on est, le problème du client, la solution, l’appel à l’action."],
+ ["Argumentaire","Vente","Ensemble d’arguments préparés pour convaincre une cible."],
+ ["Salon professionnel","Événement","Manifestation réservée aux professionnels pour rencontrer prospects et clients, vendre et gagner en notoriété."],
+ ["Goodies","Événement","Objets publicitaires offerts aux visiteurs (stylos, tote bags…)."],
+ ["PLV","Événement","Publicité sur le Lieu de Vente : présentoirs, kakémonos, testeurs…"],
+ ["Facteurs d’ambiance","Événement","Éléments sensoriels (vue, ouïe, odorat, goût, toucher) qui rendent un lieu attractif."],
+ ["Théâtralisation","Événement","Mise en scène des produits pour créer une émotion et attirer l’attention."],
+ ["Relance","Événement","Nouveau contact après un premier échange (courriel, salon) pour transformer l’intérêt en RDV ou en vente."]
+];
+let FC_FILTER = "Toutes";
+function drawCards(){
+  const cats = ["Toutes", ...new Set(NOTIONS.map(n => n[1])), "À revoir"];
+  $("#fc-filter").innerHTML = cats.map(c => `<button class="chip" data-c="${c}" aria-pressed="${c===FC_FILTER}">${c}</button>`).join("");
+  const list = NOTIONS.filter(n => FC_FILTER==="Toutes" || n[1]===FC_FILTER || (FC_FILTER==="À revoir" && !STATE.known[n[0]]));
+  $("#fc-count").textContent = `${Object.values(STATE.known).filter(Boolean).length} / ${NOTIONS.length} sues`;
+  $("#cards").innerHTML = list.map(n => `<div class="flash" role="button" tabindex="0" data-n="${esc(n[0])}" aria-label="Carte ${esc(n[0])}"><div class="in">
+    <div class="face"><span class="eyebrow">${esc(n[1])}</span><h3>${esc(n[0])}</h3><span class="${STATE.known[n[0]]?"known":"muted"}" style="font-size:.78rem">${STATE.known[n[0]]?"✓ Je sais":"Clique pour retourner"}</span></div>
+    <div class="face back"><p>${esc(n[2])}</p><div class="row"><button class="btn sm" data-k="${esc(n[0])}">${STATE.known[n[0]]?"Remettre à revoir":"Je sais"}</button></div></div></div></div>`).join("") || `<p class="muted">Bravo, tout est su dans cette catégorie.</p>`;
+}
+$("#fc-filter").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (b) { FC_FILTER = b.dataset.c; drawCards(); } });
+$("#cards").addEventListener("click", e => { const k = e.target.closest("[data-k]"); if (k) { e.stopPropagation(); STATE.known[k.dataset.k] = !STATE.known[k.dataset.k]; save(); drawCards(); return; } const c = e.target.closest(".flash"); if (c) c.classList.toggle("flip"); });
+$("#cards").addEventListener("keydown", e => { if ((e.key==="Enter"||e.key===" ") && e.target.matches(".flash")) { e.preventDefault(); e.target.classList.toggle("flip"); } });
+
+/* ===================== Démarrage ===================== */
+renderGrid(); drawCards(); openAtelier("plan"); route();
+
+</script>
+
+</body></html>
