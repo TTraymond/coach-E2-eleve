@@ -1068,4 +1068,868 @@ function drawParcours(){
   const prev = [...STATE.hist].reverse().find(h => h.d !== today);
   const vals = Object.values(cs).filter(Boolean).map(x => x.pct); const glob = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : null;
   const exams = SUJETS.filter(s => sState(s.id).mode === "exam" && sState(s.id).done && !s.locked).map(s => [s.nom, noteOf(s)]);
-  const ranked = COMPS.f
+  const ranked = COMPS.filter(([k]) => cs[k]).sort((a, b) => cs[a[0]].pct - cs[b[0]].pct); const weakest = ranked[0];
+  const notYet = COMPS.filter(([k]) => !cs[k]);
+  $("#parcours-root").innerHTML = `
+   <div class="dash-top">
+    <div class="kpi"><span class="eyebrow">Maîtrise globale</span><b>${glob == null ? "—" : glob + " %"}</b><span class="muted">${vals.length} compétence${vals.length>1?"s":""} évaluée${vals.length>1?"s":""} sur ${COMPS.length}</span></div>
+    <div class="kpi"><span class="eyebrow">Dernier examen blanc</span><b>${exams.length ? fmt(exams[exams.length-1][1],1) + " / 20" : "—"}</b><span class="muted">${exams.length ? esc(exams[exams.length-1][0]) : "Aucun examen blanc corrigé"}</span></div>
+    <div class="kpi"><span class="eyebrow">Diagnostic</span><b>${STATE.diag ? Math.round(STATE.diag.glob * 100) + " %" : "—"}</b><span class="muted">${STATE.diag ? "fait le " + new Date(STATE.diag.date).toLocaleDateString("fr-FR") : "Pas encore fait"}</span></div>
+   </div>
+   ${weakest && cs[weakest[0]].pct < 75 ? `<div class="revbox"><h4>🎯 Mon prochain objectif : progresser en « ${esc(weakest[1])} » (${cs[weakest[0]].pct} %)</h4>${revBtns(weakest[3])}</div>` : glob != null ? `<div class="tip">Bravo, toutes tes compétences évaluées sont acquises. Lance un examen blanc pour confirmer !</div>` : ""}
+   <div class="panel" style="display:grid;gap:12px"><h2 class="h2" style="font-size:1.2rem">Mes compétences</h2>
+    ${COMPS.map(([k, nom, , links]) => { const c = cs[k]; const [lab, cls] = STATUS(c?.pct); const d = c && prev?.c?.[k] != null ? c.pct - prev.c[k] : null;
+      const trend = d == null ? "" : d <= -10 ? `<span class="trend down">↘ régresse (${d} pts)</span>` : d >= 10 ? `<span class="trend up">↗ +${d} pts</span>` : "";
+      return `<div class="comp"><div class="row" style="justify-content:space-between"><b>${esc(nom)}</b><span><span class="st ${cls}">${lab}</span> <span class="mono">${c ? c.pct + " %" : ""}</span> ${trend}</span></div>
+       <div class="bar ${cls}"><i style="width:${c ? c.pct : 0}%"></i></div>
+       ${c && c.pct < 75 ? revBtns(links.slice(0, 3)) : ""}</div>`; }).join("")}
+    <p class="muted" style="font-size:.84rem">Calcul : les questions des sujets dont le corrigé est ouvert (pondérées par le barème), tes exercices de calcul et ton diagnostic. Acquis ≥ 75 %, en cours 50 à 74 %, à travailler &lt; 50 %. La tendance compare avec ton dernier jour d’entraînement.</p>
+   </div>
+   ${notYet.length ? `<div class="tip">Pas encore évalué : <b>${notYet.map(c => esc(c[1])).join(", ")}</b>. Fais le diagnostic ou traite un sujet dont le corrigé est ouvert.</div>` : ""}
+   <div class="row"><button class="btn primary" id="diag-go">${STATE.diag ? "Refaire le diagnostic" : "Évaluer mon niveau (15 questions)"}</button><button class="btn" id="express-go">⚡ Révision express (10 questions)</button><a class="btn" href="#sujets">Traiter un sujet</a></div>
+   ${exams.length ? `<div class="panel"><p class="eyebrow">Mes examens blancs</p><table class="pwtable">${exams.map(([n, v]) => `<tr><td>${esc(n)}</td><td>${fmt(v,1)} / 20</td></tr>`).join("")}</table></div>` : ""}
+   <div id="diag-box"></div>
+   <div id="backup-box">${backupPanel()}</div>`;
+  $("#diag-go").onclick = () => runDiag();
+  $("#express-go").onclick = () => runExpress();
+  bindBackup($("#backup-box"));
+}
+
+/* ===================== Diagnostic de départ ===================== */
+const DIAG = [
+ ["calc","num","Prix d’achat HT : 60 €. Prix de vente HT : 100 €. Quel est le taux de marque (en %) ?",40,"Taux de marque = marge ÷ PV HT × 100 = 40 ÷ 100 × 100 = 40 %."],
+ ["calc","num","18 ventes réalisées pour un objectif de 20. Quel est le taux de réalisation (en %) ?",90,"18 ÷ 20 × 100 = 90 %."],
+ ["calc","num","Un CA de 2 400 € TTC (TVA 20 %) correspond à combien d’euros HT ?",2000,"2 400 ÷ 1,20 = 2 000 € HT."],
+ ["marche","qcm","Pour une agence immobilière, « la hausse des taux d’intérêt » est…",["une menace","une opportunité","une force","une faiblesse"],"Un fait du marché (externe) et défavorable : une menace."],
+ ["marche","qcm","« L’entreprise possède un showroom avec une piste d’essai » est…",["une force","une opportunité","une menace","une faiblesse"],"Une ressource interne favorable : une force."],
+ ["prosp","qcm","Quelle est la bonne première étape d’un plan d’appel ?",["Saluer, se présenter et vérifier l’interlocuteur","Annoncer le prix","Proposer directement le rendez-vous","Traiter les objections"],"On commence toujours par la prise de contact."],
+ ["prosp","qcm","Critères : moins de 50 km ET au moins 10 salariés. Quelle entreprise retenir ?",["25 salariés, 30 km","6 salariés, 12 km","80 salariés, 75 km","9 salariés, 40 km"],"« ET » : les deux critères doivent être respectés en même temps."],
+ ["analyse","qcm","Taux de prise de RDV : 9,5 % pour un objectif de 12 %. Quelle phrase est une vraie analyse ?",["Le taux est de 9,5 %, sous l’objectif de 12 % : il manque 5 RDV, sans doute à cause d’un ciblage trop large.","Le taux est de 9,5 %.","La prospection s’est bien passée.","Il faut faire mieux."],"Analyser = constat chiffré + comparaison + explication + conclusion."],
+ ["analyse","num","Ventes : 250 en 2024, 215 en 2025. Quel est le taux d’évolution (en %, avec le signe) ?",-14,"(215 − 250) ÷ 250 × 100 = −14 %."],
+ ["argu","qcm","Dans la méthode CAP, que signifie le « A » ?",["Avantage pour le client","Argument","Accroche","Achat"],"Caractéristique → Avantage (ce que ça apporte au client) → Preuve."],
+ ["argu","qcm","« Livré sous 2 jours, sans installation » : quel mobile d’achat (SONCASE) ?",["Confort","Orgueil","Nouveauté","Sympathie"],"Ce qui simplifie la vie du client relève du Confort."],
+ ["redac","qcm","Que doit contenir l’en-tête d’une note ?",["De, À, Date, Objet","Le logo et un slogan","Une formule de politesse","Le numéro de téléphone du client"],"La note commence par De / À / Date / Objet."],
+ ["redac","qcm","Quelle formule convient pour terminer un courriel professionnel ?",["Je vous prie d’agréer, Madame, l’expression de mes salutations distinguées.","Bisous","À plus !","Salut et bonne journée"],"Toujours une formule de politesse professionnelle."],
+ ["digital","qcm","Quel réseau social choisir pour toucher des chefs d’entreprise ?",["LinkedIn","TikTok","Snapchat","Pinterest"],"LinkedIn est le réseau des professionnels (B to B)."],
+ ["digital","num","120 interactions pour 3 000 vues. Quel est le taux d’engagement (en %) ?",4,"120 ÷ 3 000 × 100 = 4 %."]
+];
+function runDiag(){
+  const box = $("#diag-box"); let i = 0; const ans = [];
+  const list = DIAG.map(d => d[1] === "qcm" ? [...d.slice(0, 3), shuffle(d[3]), d[4], d[3][0]] : d);
+  const step = () => {
+    if (i >= list.length) return finish();
+    const d = list[i];
+    box.innerHTML = `<div class="panel" style="display:grid;gap:10px"><p class="eyebrow">Diagnostic · question ${i+1} / ${list.length}</p><div class="bar"><i style="width:${i / list.length * 100}%"></i></div>
+     <p style="font-weight:600">${esc(d[2])}</p>
+     ${d[1] === "qcm" ? `<div class="opts" style="display:grid;gap:8px">${d[3].map(o => `<button class="btn" data-o="${esc(o)}" style="justify-content:flex-start;text-align:left">${esc(o)}</button>`).join("")}</div>`
+       : `<form class="answer-row" id="dg-f"><input id="dg-in" inputmode="decimal" autocomplete="off" aria-label="Ta réponse"><button class="btn primary">Valider</button></form>`}
+     <p class="feedback" id="dg-fb" aria-live="polite"></p></div>`;
+    box.scrollIntoView({block:"start"});
+    const done = ok => { ans.push([d[0], ok]); $("#dg-fb").className = "feedback " + (ok ? "ok" : "ko"); $("#dg-fb").textContent = (ok ? "✓ " : "✕ ") + d[d[1]==="qcm" ? 4 : 4];
+      $$("#diag-box button, #diag-box input").forEach(x => x.disabled = true);
+      const nx = document.createElement("button"); nx.className = "btn primary"; nx.textContent = i + 1 < list.length ? "Question suivante →" : "Voir mon résultat"; nx.style.justifySelf = "start"; nx.onclick = () => { i++; step(); }; $("#diag-box .panel").appendChild(nx); nx.focus(); };
+    if (d[1] === "qcm") $$("[data-o]", box).forEach(b => b.onclick = () => done(b.dataset.o === d[5]));
+    else { $("#dg-in").focus(); $("#dg-f").onsubmit = e => { e.preventDefault(); const v = parseNum($("#dg-in").value); if (isNaN(v)) return; done(Math.abs(v - d[3]) <= Math.max(0.06, Math.abs(d[3]) * 0.001)); }; }
+  };
+  const finish = () => {
+    const res = {}; COMPS.forEach(([k]) => { const a = ans.filter(x => x[0] === k); if (a.length) res[k] = a.filter(x => x[1]).length / a.length; });
+    const glob = ans.filter(x => x[1]).length / ans.length;
+    STATE.diag = {date: Date.now(), res, glob}; save(); drawParcours();
+    const weak = COMPS.filter(([k]) => res[k] != null && res[k] < 1);
+    $("#diag-box").innerHTML = `<div class="panel" style="display:grid;gap:10px"><p class="eyebrow">Résultat du diagnostic</p><h2 class="h2">${ans.filter(x=>x[1]).length} / ${ans.length} bonnes réponses</h2>
+      ${weak.length ? `<p>Ton parcours personnalisé, dans l’ordre :</p>${weak.sort((a,b) => res[a[0]] - res[b[0]]).map(([k, nom, , links]) => `<div class="comp"><b>${esc(nom)} — ${Math.round(res[k]*100)} %</b>${revBtns(links)}</div>`).join("")}` : `<p class="feedback ok">Sans faute ! Passe directement aux sujets en mode examen blanc.</p>`}</div>`;
+    $("#diag-box").scrollIntoView({block:"start"});
+  };
+  step();
+}
+
+/* ===================== Export de la copie ===================== */
+STATE.ident ??= {nom:"", classe:""};
+let DL = null; (async () => { try { DL = window.claude?.use ? await claude.use("downloads") : null; } catch (e) { DL = null; } })();
+const stripTags = h => String(h).replace(/<[^>]+>/g, "");
+function copieBlocks(s){
+  const st = sState(s.id); const B = []; const P = (t, x) => B.push([t, x]);
+  P("h1", `Coach E2 — Copie : ${s.nom}`);
+  P("p", `Élève : ${STATE.ident.nom || "(nom non renseigné)"}${STATE.ident.classe ? " · Classe : " + STATE.ident.classe : ""}`);
+  P("p", `Sujet : ${s.nom} (${s.annee}, ${s.option}) · Exporté le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})}`);
+  const p = sujetProgress(s);
+  P("p", `Mode : ${st.mode === "exam" ? "examen blanc 3 h" + (st.start ? (st.done ? " — copie rendue" : " — en cours") : "") : "entraînement"} · ${p.done} / ${p.total} questions traitées`);
+  P("p", s.locked ? "Corrigé non encore débloqué : pas de score automatique." : `Estimation automatique (calculs, sélections et auto-évaluation) : ${fmt(noteOf(s), 1)} / 20 — note indicative, le professeur reste le correcteur.`);
+  s.missions.forEach(m => { P("h2", m.titre);
+    m.qs.forEach(q => { const a = qState(s.id, q.n);
+      P("b", `${q.n} — ${q.verbe} ${q.txt} (≈ ${fmt0(ptsOf(s, q))} pts)`);
+      if (q.type === "calc") q.fields.forEach((f, i) => { const v = String(a.f[i] ?? "").trim(); const ok = !s.locked && v ? (fieldOk(f, v) ? " ✓" : " ✗") : ""; P("p", `• ${f.l} : ${v || "—"}${ok}`); });
+      if (q.type === "select") { const sel = q.items.filter((it, i) => a.sel[i]).map(it => it.l); P("p", `Sélection : ${sel.length ? sel.join(" ; ") : "aucune"}${!s.locked && sel.length ? (selEval(q, a.sel) ? " ✓" : " ✗ (à revoir)") : ""}`); }
+      P("p", a.text.trim() ? a.text.trim() : "(pas de réponse rédigée)");
+      if (!s.locked && q.type === "open" && Object.values(a.chk).some(v => chkVal(v) !== null)) {
+        const lab = {1:"acquis", 0.5:"à améliorer", 0:"non traité"};
+        P("small", "Auto-évaluation : " + q.corr.map((c, i) => `${stripTags(c).slice(0, 60)}… → ${lab[chkVal(a.chk[i])] ?? "non évalué"}`).join(" | ")); }
+      if (a.hard) P("small", "L’élève signale avoir eu du mal sur cette question.");
+    }); });
+  return B;
+}
+const copieText = s => copieBlocks(s).map(([t, x]) => t === "h1" ? x.toUpperCase() + "\n" : t === "h2" ? "\n== " + x + " ==" : t === "b" ? "\n" + x : x).join("\n");
+/* — fichier Word (.docx) écrit à la main : zip sans compression — */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = u => { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipStore(files){
+  const enc = new TextEncoder(); const chunks = [], central = []; let off = 0;
+  files.forEach(([name, str]) => { const nm = enc.encode(name), data = enc.encode(str), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(12, 0x21, true); h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nm.length, true);
+    chunks.push(new Uint8Array(h.buffer), nm, data);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), nm); off += 30 + nm.length + data.length; });
+  const cdSize = central.reduce((a, u) => a + u.length, 0);
+  const e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  return new Blob([...chunks, ...central, new Uint8Array(e.buffer)], {type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+}
+function docxBlob(blocks){
+  const x = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const run = (t, o = {}) => `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.c ? `<w:color w:val="${o.c}"/>` : ""}<w:sz w:val="${o.sz || 22}"/></w:rPr>${t.split("\n").map((l, k) => (k ? "<w:br/>" : "") + `<w:t xml:space="preserve">${x(l)}</w:t>`).join("")}</w:r>`;
+  const para = ([t, s]) => { const o = {h1:{b:1, sz:34}, h2:{b:1, sz:28, c:"1F3A8A"}, b:{b:1, sz:22}, small:{i:1, sz:18, c:"555555"}, p:{}}[t] || {};
+    return `<w:p><w:pPr><w:spacing w:before="${t === "h2" ? 320 : t === "b" ? 200 : 40}" w:after="80"/></w:pPr>${run(s, o)}</w:p>`; };
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${blocks.map(para).join("")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  return zipStore([
+   ["[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`],
+   ["_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`],
+   ["word/document.xml", doc]]);
+}
+const slug = t => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+function openExport(s){
+  const box = $("#export-box"); box.hidden = !box.hidden; if (box.hidden) return;
+  box.innerHTML = `<div class="row" style="justify-content:space-between"><h2 class="h2" style="font-size:1.2rem">📤 Envoyer ma copie au professeur</h2><button class="btn sm ghost" data-x="close">Fermer</button></div>
+   <p class="muted" style="font-size:.9rem">Renseigne ton nom, télécharge le fichier Word puis dépose-le sur Pronote (ou dans le mail demandé par ton professeur). Si le téléchargement ne marche pas, copie le texte et colle-le.</p>
+   <div class="form-grid"><label>Prénom et nom<input data-id="nom" autocomplete="name" value="${esc(STATE.ident.nom)}"></label><label>Classe<input data-id="classe" value="${esc(STATE.ident.classe)}" placeholder="Tle MCV B"></label></div>
+   <div class="row"><button class="btn primary" data-x="docx">Télécharger ma copie (Word)</button><button class="btn" data-x="copy">Copier le texte</button></div>
+   <textarea class="copy" data-x-txt readonly style="min-height:160px" aria-label="Texte de la copie"></textarea>`;
+  const fill = () => { $("[data-x-txt]", box).value = copieText(s); }; fill();
+  box.oninput = e => { const k = e.target.dataset.id; if (k) { STATE.ident[k] = e.target.value.slice(0, 60); save(); fill(); } };
+  box.onclick = async e => { const b = e.target.closest("[data-x]"); if (!b) return;
+    if (b.dataset.x === "close") { box.hidden = true; return; }
+    if (b.dataset.x === "copy") { const t = $("[data-x-txt]", box); const fb = () => { t.focus(); t.select(); toast("Texte sélectionné : copie-le (Ctrl + C ou appui long)"); };
+      try { await navigator.clipboard.writeText(t.value); toast("Copie copiée : colle-la dans Pronote ou un mail"); } catch (err) { fb(); } return; }
+    if (b.dataset.x === "docx") {
+      if (!STATE.ident.nom.trim()) { toast("Écris d’abord ton prénom et ton nom"); $("[data-id=nom]", box).focus(); return; }
+      const blob = docxBlob(copieBlocks(s)); const filename = `copie-E2-${slug(s.nom).slice(0, 30)}-${slug(STATE.ident.nom) || "eleve"}.docx`;
+      if (DL) { try { await DL.save({filename, data: blob}); toast("Fichier enregistré"); } catch (err) { if (err?.code !== "declined") toast("Téléchargement impossible ici : utilise « Copier le texte »"); } }
+      else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+    } };
+  box.scrollIntoView({block:"nearest"});
+}
+
+function critAdvice(q, art, qs){
+  const el = $("[data-adv]", art); if (!el) return;
+  const miss = q.corr.map((c, i) => [c, chkVal(qs.chk[i])]).filter(([c, v]) => v !== null && v < 1);
+  if (!miss.length) { el.innerHTML = ""; return; }
+  const vb = VERBES.find(([v]) => v.split(" / ").some(x => q.verbe.toLowerCase().startsWith(x.toLowerCase().slice(0, 6))));
+  el.innerHTML = `<div class="revbox"><h4>Pour améliorer ta réponse</h4>${vb ? `<p style="margin:0"><b>${esc(q.verbe)}</b>, c’est : ${esc(vb[1])}</p>` : ""}<ul>${miss.map(([c, v]) => `<li>${v === 0 ? "À ajouter" : "À développer"} : ${c}</li>`).join("")}</ul></div>`;
+}
+/* =====================================================================
+   ATELIERS : accueil groupé + nouveaux ateliers
+   ===================================================================== */
+const AT_INFO = {
+ build:["Construire mes réponses","✍️","Construire sa réponse","La structure qui rapporte des points : axes d’amélioration, analyse chiffrée, courriel, note.","« Proposer des axes d’amélioration », « Analyser les résultats », « Rédiger un courriel / une note »"],
+ annexe:["Construire mes réponses","🔎","Exploiter les annexes","Trouver vite la bonne donnée dans un tableau, un graphique ou un texte, et savoir quelle ressource utiliser.","Toutes les questions : « À partir des ressources… »"],
+ planif:["Prospecter","🗓️","Planifier une opération","Remettre dans l’ordre les étapes d’un salon ou de portes ouvertes, puis bâtir un plan de prospection.","« Préparer la participation au salon », « Élaborer une opération de prospection »"],
+ plan:["Prospecter","☎️","Plan d’appel","Les étapes d’un appel de prise de rendez-vous ou de relance, dans le bon ordre.","« Préparer un plan d’appel structuré »"],
+ fiche:["Prospecter","🗂️","Fiche contact","Les informations utiles à enregistrer sur un prospect, dans le respect du RGPD.","« Créer une fiche contact », « Enrichir le SIC »"],
+ soncas:["Prospecter","🎯","Mobiles d’achat","Reconnaître le mobile SONCASE derrière un argument.","« Rédiger des arguments structurés »"],
+ obj:["Prospecter","🛡️","Objections","Choisir la bonne technique pour répondre à une objection.","« Traiter les objections »"],
+ rs:["Communiquer","📱","Réseaux sociaux","Choisir le bon réseau, rédiger une publication avec hashtags, repérer les faiblesses d’une page.","« Sélectionner le réseau social », « Préparer la publication », « Identifier les faiblesses de la page »"],
+ maquette:["Communiquer","🖼️","Maquette d’invitation ou de flyer","Les éléments obligatoires d’un support et leur ordre d’importance.","« Concevoir la maquette de l’e-invitation »"],
+ sms:["Communiquer","💬","SMS marketing","Un SMS commercial en 160 caractères, avec offre et mention STOP.","« Rédiger un SMS »"],
+ enquete:["Communiquer","📊","Questionnaire de satisfaction","Rédiger de bonnes questions, puis exploiter les résultats en pourcentages.","« Analyser l’enquête de satisfaction », « Concevoir un questionnaire »"],
+ swot:["Analyser le marché","⚖️","Forces / menaces","Interne ou externe ? Favorable ou défavorable ?","« Repérer opportunités et menaces », « Relever forces et faiblesses »"]
+};
+function atHome(){
+  const groups = {}; Object.entries(AT_INFO).forEach(([k, i]) => (groups[i[0]] ??= []).push([k, i]));
+  $("#at-nav").innerHTML = Object.entries(groups).map(([g, list]) => `<div class="at-group"><h2 class="h2" style="font-size:1.1rem">${esc(g)}</h2><div class="at-cards">${list.map(([k, i]) => `<button class="at-card" data-at="${k}"><span class="at-ic" aria-hidden="true">${i[1]}</span><span><b>${esc(i[2])}</b><small>${esc(i[3])}</small></span></button>`).join("")}</div></div>`).join("");
+  $("#atelier").hidden = true;
+}
+function atBar(k){
+  const i = AT_INFO[k];
+  $("#at-nav").innerHTML = `<div class="at-bar"><button class="btn sm ghost" data-athome>← Tous les ateliers</button>
+   <div><p class="eyebrow">${esc(i[0])}</p><h2 class="h2">${i[1]} ${esc(i[2])}</h2><p class="muted" style="margin:2px 0 0">${esc(i[3])}</p><p class="at-use">Utile pour : ${esc(i[4])}</p></div></div>`;
+  $("#atelier").hidden = false;
+}
+/* sous-onglets d’un atelier */
+function subTabs(list, cur){ return `<div class="seg sub" role="group" aria-label="Exercices">${list.map(([k, l], n) => `<button data-sub="${k}" aria-pressed="${k===cur}">${n+1}. ${esc(l)}</button>`).join("")}</div>`; }
+
+/* ---------- Mini-quiz réutilisable (QCM ou nombre) ---------- */
+function miniQuiz(box, items, opts = {}){
+  let i = 0, score = 0; const wrong = [];
+  const draw = () => {
+    if (i >= items.length) {
+      const links = [...new Set(wrong.map(w => w.rev).filter(Boolean))];
+      box.innerHTML = `${opts.doc || ""}<div class="quiz-end"><p class="feedback ${score >= items.length * .7 ? "ok" : "ko"}">Score : ${score} / ${items.length}</p>
+       ${links.length ? `<p class="muted" style="margin:0">Pour progresser :</p>${revBtns(links)}` : ""}
+       <div class="row"><button class="btn primary" data-q="again">Recommencer</button></div></div>`;
+      opts.onDone?.(score, items.length); return; }
+    const it = items[i];
+    box.innerHTML = `${opts.doc || ""}<div class="quiz-card"><div class="row" style="justify-content:space-between"><span class="eyebrow">Question ${i+1} / ${items.length}</span><span class="muted mono">${score} pt</span></div>
+     <p class="quote">${esc(it.prompt)}</p>
+     ${it.opts ? `<div class="opts">${it.opts.map(o => `<button data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div>`
+       : `<form class="answer-row" data-num><input inputmode="decimal" autocomplete="off" aria-label="Ta réponse" placeholder="0"><span class="mono">${esc(it.u || "")}</span><button class="btn primary">Valider</button></form>`}
+     <div data-ex hidden></div></div>`;
+    const answer = ok => { if (ok) score++; else wrong.push(it);
+      const ex = $("[data-ex]", box); ex.hidden = false;
+      ex.innerHTML = `<div class="explain"><b>${ok ? "✓ Juste." : "✕ " + (it.opts ? "La bonne réponse : " + esc(it.good) : "Réponse attendue : " + fmt0(it.num) + " " + esc(it.u || ""))}</b><br>${it.explain}</div><div class="row" style="margin-top:10px"><button class="btn primary" data-q="next">${i + 1 < items.length ? "Suivant →" : "Voir mon score"}</button></div>`;
+      $("[data-q=next]", box).focus(); };
+    if (it.opts) $$("[data-o]", box).forEach(b => b.onclick = () => { if (box.dataset.ans) return; box.dataset.ans = 1; const ok = b.dataset.o === it.good;
+      $$("[data-o]", box).forEach(x => { if (x.dataset.o === it.good) x.classList.add("good"); else if (x === b) x.classList.add("bad"); x.disabled = true; }); answer(ok); });
+    else { const f = $("[data-num]", box); f.onsubmit = e => { e.preventDefault(); if (box.dataset.ans) return; const v = parseNum($("input", f).value); if (isNaN(v)) return; box.dataset.ans = 1;
+      const ok = Math.abs(v - it.num) <= (it.tol ?? 0.06); $("input", f).classList.add(ok ? "ok" : "ko"); $$("input,button", f).forEach(x => x.disabled = true); answer(ok); }; }
+  };
+  box.onclick = e => { const b = e.target.closest("[data-q]"); if (!b) return; delete box.dataset.ans;
+    if (b.dataset.q === "next") { i++; draw(); } if (b.dataset.q === "again") { i = 0; score = 0; wrong.length = 0; if (opts.shuffle) items = shuffle(items); draw(); } };
+  delete box.dataset.ans; draw();
+}
+const qcm = (prompt, good, others, explain, rev) => ({prompt, good, opts: shuffle([good, ...others]), explain, rev});
+const num = (prompt, n, u, explain, rev, tol) => ({prompt, num: n, u, explain, rev, tol});
+
+/* ---------- Atelier RÉSEAUX SOCIAUX ---------- */
+const RESEAUX = {
+ Facebook:{pub:"Grand public, surtout 25-60 ans ; groupes et vie locale.", fmt:"Textes, photos, vidéos, événements, réels.", use:"B to C local : magasins, garages, événements, portes ouvertes.", ht:[1,3], ton:"Chaleureux et clair."},
+ Instagram:{pub:"Surtout 15-35 ans.", fmt:"Photos soignées, stories, réels (vidéos courtes).", use:"Image de marque, produits visuels, coulisses, mode, food, loisirs.", ht:[5,10], ton:"Visuel, émojis, phrases courtes."},
+ TikTok:{pub:"Surtout 13-25 ans.", fmt:"Vidéos verticales courtes, tendances, musique.", use:"Toucher les jeunes, notoriété, démonstrations rapides.", ht:[3,5], ton:"Spontané, rythmé, accroche dans les 3 premières secondes."},
+ LinkedIn:{pub:"Professionnels, décideurs, recruteurs.", fmt:"Posts, articles, vidéos, événements.", use:"B to B : salons, prospection, recrutement, expertise.", ht:[3,5], ton:"Professionnel, chiffres, pas de familiarité."},
+ Snapchat:{pub:"Surtout 13-24 ans.", fmt:"Photos et vidéos éphémères, filtres.", use:"Offres flash, proximité avec les jeunes.", ht:[0,2], ton:"Très court, ludique."},
+ Pinterest:{pub:"Personnes qui cherchent de l’inspiration.", fmt:"Épingles (images verticales) classées en tableaux.", use:"Décoration, mode, recettes, mariage, bricolage.", ht:[2,5], ton:"Descriptif, inspirant."},
+ YouTube:{pub:"Tous les âges.", fmt:"Vidéos longues, tutoriels, shorts.", use:"Démonstrations, tutoriels, présentation détaillée d’un produit.", ht:[2,5], ton:"Pédagogique."},
+ X:{pub:"Actualité, journalistes, institutions.", fmt:"Messages courts, fils, réactions en direct.", use:"Réagir à l’actualité, couvrir un événement en direct.", ht:[1,2], ton:"Bref et percutant."}
+};
+const RS_CHOIX = [
+ ["Une agence d’intérim veut recruter des commerciaux expérimentés.","LinkedIn","Les recruteurs et les professionnels sont sur LinkedIn : c’est LE réseau du recrutement et du B to B."],
+ ["Un food truck veut annoncer son emplacement du jour à des étudiants avec une courte vidéo dynamique.","TikTok","Des 18-24 ans + une vidéo courte et rythmée : TikTok (les réels Instagram seraient un second choix)."],
+ ["Un garage organise une journée « contrôle gratuit des pneus » pour les habitants de la commune.","Facebook","Public adulte et local, événement à partager dans les groupes de la ville : Facebook."],
+ ["Un éditeur de logiciels veut obtenir des rendez-vous avec des directeurs commerciaux de PME.","LinkedIn","Cible de décideurs en entreprise (B to B) : LinkedIn."],
+ ["Une boutique de décoration veut inspirer des clientes qui cherchent des idées d’aménagement.","Pinterest","Pinterest sert à chercher des idées (déco, recettes, mode) : les épingles renvoient vers la boutique."],
+ ["Un vendeur de vélos électriques veut publier un tutoriel de 10 minutes sur l’entretien de la batterie.","YouTube","Une vidéo longue et pédagogique : YouTube."],
+ ["Une marque de vêtements veut présenter sa nouvelle collection avec de belles photos et des stories.","Instagram","Instagram est le réseau de l’image soignée et des stories : idéal pour la mode."],
+ ["Un exposant veut commenter en direct les annonces d’un salon et échanger avec des journalistes.","X","Le direct et l’actualité, avec des journalistes : X (ex-Twitter). LinkedIn conviendrait pour un bilan après le salon."],
+ ["Une salle de sport veut proposer une offre flash de 24 h aux lycéens du quartier.","Snapchat","Offre éphémère pour des 13-24 ans : Snapchat (Instagram en stories serait aussi possible)."]
+];
+const RS_POSTS = [
+ {id:"li", net:"LinkedIn", nom:"Assur’Pro", tag:"assurpro", sit:"Assur’Pro, cabinet d’assurance pour les artisans, sera au salon Artisanat Expo de Lyon les 14 et 15 mars (stand B12). Objectif : obtenir des rendez-vous avec des chefs d’entreprise artisanale.",
+  model:{acc:"Artisans, êtes-vous vraiment bien assurés ?", msg:"Les 14 et 15 mars, l’équipe Assur’Pro vous attend au salon Artisanat Expo de Lyon pour un bilan gratuit de vos contrats : responsabilité civile, véhicules, locaux.", info:"Stand B12 · 14 et 15 mars · Eurexpo Lyon", cta:"Réservez votre créneau de 20 minutes en message privé ou sur notre site.", ht:"#AssurPro #Artisanat #ArtisanatExpo #Assurance #Entrepreneurs", vis:"Photo de l’équipe sur le stand + logo ; mention du salon @Artisanat Expo"}},
+ {id:"ig", net:"Instagram", nom:"Auto-école Feu Vert", tag:"feuvert", sit:"L’auto-école Feu Vert lance une offre pour les 15-25 ans : code + 20 heures de conduite à 990 € jusqu’au 30 novembre.",
+  model:{acc:"🚗 Ton permis à 990 € ? C’est maintenant !", msg:"Code illimité + 20 h de conduite avec nos moniteurs, pour passer ton permis sereinement.", info:"990 € au lieu de 1 190 € · jusqu’au 30 novembre", cta:"Inscris-toi en DM ou via le lien en bio 👆", ht:"#FeuVert #AutoEcole #Permis #PermisDeConduire #Code #Conduite #Jeunes", vis:"Photo d’un élève souriant au volant, logo Feu Vert"}},
+ {id:"tt", net:"TikTok", nom:"Vosges Glisse", tag:"vosgesglisse", sit:"Vosges Glisse, loueur de skis, offre −20 % aux étudiants le week-end du 6 décembre sur présentation de la carte étudiante.",
+  model:{acc:"« Le ski à petit prix, ça existe ? » (gros plan sur les skis)", msg:"On voit des étudiants récupérer leur matériel en 2 minutes et dévaler la piste, musique tendance.", info:"−20 % le week-end du 6 décembre avec ta carte étudiante", cta:"Réserve ton matériel avec le lien en bio et tague tes potes !", ht:"#VosgesGlisse #Ski #Etudiant #BonPlan", vis:"Vidéo verticale de 20 s, texte à l’écran, musique tendance"}},
+ {id:"fb", net:"Facebook", nom:"Garage Dupuis", tag:"garagedupuis", sit:"Le Garage Dupuis organise une journée contrôle gratuit des pneus le samedi 22 novembre de 9 h à 17 h, avant l’hiver.",
+  model:{acc:"L’hiver arrive : vos pneus sont-ils prêts ?", msg:"Le Garage Dupuis vous offre un contrôle complet de vos pneus (usure, pression, parallélisme visuel), sans rendez-vous.", info:"Samedi 22 novembre · 9 h - 17 h · 12 rue des Lilas, Épinal", cta:"Venez avec votre véhicule et partagez l’info à vos proches !", ht:"#GarageDupuis #SecuriteRoutiere", vis:"Photo d’un mécanicien contrôlant un pneu ; création d’un événement Facebook"}}
+];
+const RS_FIELDS = [["acc","Accroche","Une phrase courte qui donne envie de lire (question, chiffre, émotion)."],["msg","Message principal","Ce que vous proposez, en 1 ou 2 phrases."],["info","Information clé","Date, lieu, prix, offre : du concret et des chiffres."],["cta","Appel à l’action","Ce que le lecteur doit faire : réserver, s’inscrire, venir, cliquer…"],["ht","Hashtags","Collés au # , sans espace ni accent ; marque + thème."],["vis","Visuel et mentions","Photo ou vidéo proposée, comptes ou partenaires mentionnés (@)."]];
+const RS_AUDIT = [
+ ["Seulement 41 abonnés","Quantitative","Un nombre d’abonnés se compte : c’est une faiblesse quantitative."],
+ ["Dernière publication il y a 8 mois","Quantitative","La fréquence de publication se mesure : quantitative."],
+ ["Seulement 3 avis clients","Quantitative","Le nombre d’avis est quantitatif."],
+ ["Un avis négatif est resté sans réponse","Qualitative","C’est la qualité de la relation client : qualitative."],
+ ["Hashtags mal écrits (« # assurance », « #Assurance auto »)","Qualitative","Les hashtags avec espace ne fonctionnent pas : défaut de qualité."],
+ ["Publication sans photo ni vidéo","Qualitative","Le contenu est peu attractif : qualitative."],
+ ["Faute d’orthographe : « Nous sommes ouvert »","Qualitative","Une faute nuit à l’image : qualitative."],
+ ["Rubrique « À propos » sans horaires ni site internet","Qualitative","Informations incomplètes : qualitative."],
+ ["Le logo est utilisé en photo de profil","Pas une faiblesse","C’est une bonne pratique : la page est identifiable."],
+ ["Le numéro de téléphone est indiqué","Pas une faiblesse","C’est utile pour le client : pas une faiblesse."]
+];
+STATE.rs ??= {};
+const htList = t => (String(t).match(/#[^\s#]+/g) || []);
+function rsChecks(p, v){
+  const R = RESEAUX[p.net], tags = htList(v.ht), raw = v.ht || "";
+  const nt = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const C = [
+   ["Accroche courte (15 mots max.)", !!v.acc?.trim() && v.acc.trim().split(/\s+/).length <= 15],
+   ["Message principal rédigé", (v.msg || "").trim().split(/\s+/).length >= 6],
+   ["Information clé avec un chiffre (date, prix…)", /\d/.test(v.info || "")],
+   ["Appel à l’action avec un verbe (réserve, inscris-toi, viens…)", /(réserv|inscri|clique|découvr|contact|appel|rendez|venez|viens|profit|command|partag|comment|abonn|lien|rejoi|écri|envoi|envoy|\bDM\b|tague|inscrivez|venir)/i.test(v.cta || "")],
+   [`Entre ${R.ht[0]} et ${R.ht[1]} hashtags pour ${p.net} (tu en as ${tags.length})`, tags.length >= R.ht[0] && tags.length <= R.ht[1]],
+   ["Hashtags sans espace après le # ni mots séparés", !/#\s/.test(raw) && !/#[A-Za-zÀ-ÿ0-9_]+\s+[a-zà-ÿ]/.test(raw.replace(/#\S+\s+(?=#)/g, ""))],
+   ["Hashtags sans accent ni ponctuation", tags.every(t => /^#[A-Za-z0-9_]+$/.test(t))],
+   ["Un hashtag de la marque", tags.some(t => nt(t).includes(p.tag.slice(0, 6)))],
+   ["Au moins un hashtag thématique", tags.some(t => !nt(t).includes(p.tag.slice(0, 6)))]
+  ];
+  return C;
+}
+function rsPreview(p, v){
+  const ini = p.nom.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const hl = t => esc(t).replace(/(#[^\s#<]+|@[^\s<]+)/g, '<span class="hl-tag">$1</span>');
+  if (p.net === "TikTok") return `<div class="tt-phone"><div class="tt-screen"><span class="tt-l">${esc(v.acc || "Accroche (0-3 s)")}</span><span class="tt-l small">${esc(v.msg || "Contenu de la vidéo")}</span><span class="tt-l small">${esc(v.info || "")}</span><span class="tt-cap"><b>@${esc(p.tag)}</b> ${hl(v.cta || "")} ${hl(v.ht || "")}</span></div></div>`;
+  return `<div class="post ${p.net.toLowerCase()}"><div class="post-h"><span class="av">${ini}</span><span><b>${esc(p.nom)}</b><small>${p.net} · à l’instant</small></span></div>
+   <div class="post-b">${v.acc ? `<p><b>${hl(v.acc)}</b></p>` : ""}${v.msg ? `<p>${hl(v.msg)}</p>` : ""}${v.info ? `<p>📍 ${hl(v.info)}</p>` : ""}${v.cta ? `<p>👉 ${hl(v.cta)}</p>` : ""}${v.ht ? `<p>${hl(v.ht)}</p>` : ""}</div>
+   <div class="post-img">${v.vis ? "📷 " + esc(v.vis) : "Visuel"}</div><div class="post-f">👍 J’aime · 💬 Commenter · ↗ Partager</div></div>`;
+}
+function atRS(sub = "choix"){
+  atBar("rs"); const box = $("#atelier");
+  box.innerHTML = `${subTabs([["choix","Choisir le réseau"],["post","Rédiger une publication"],["audit","Repérer les faiblesses"]], sub)}
+   <details class="memo"><summary>📌 Fiche mémo des réseaux sociaux</summary><div class="memo-grid">${Object.entries(RESEAUX).map(([n, r]) => `<div><b>${n}</b><span><i>Public :</i> ${esc(r.pub)}</span><span><i>Formats :</i> ${esc(r.fmt)}</span><span><i>Pour :</i> ${esc(r.use)}</span><span><i>Hashtags :</i> ${r.ht[0]} à ${r.ht[1]} · <i>Ton :</i> ${esc(r.ton)}</span></div>`).join("")}</div></details>
+   <div id="rs-body"></div>`;
+  box.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) atRS(b.dataset.sub); };
+  const body = $("#rs-body");
+  if (sub === "choix") {
+    const nets = Object.keys(RESEAUX);
+    body.innerHTML = `<p class="muted">Pour chaque situation, choisis le réseau le plus adapté. Pense d’abord à la <b>cible</b> (qui ?), puis au <b>format</b> (photo, vidéo courte, vidéo longue, texte).</p><div id="rs-q"></div>`;
+    miniQuiz($("#rs-q"), shuffle(RS_CHOIX).map(([s, g, ex]) => qcm(s, g, shuffle(nets.filter(n => n !== g)).slice(0, 3), esc(ex), "at:rs-choix")));
+  }
+  if (sub === "post") {
+    const pid = STATE.rs.p || "li"; const p = RS_POSTS.find(x => x.id === pid) || RS_POSTS[0]; STATE.rs.v ??= {}; const v = STATE.rs.v[p.id] ??= {};
+    body.innerHTML = `<div class="chips" role="group" aria-label="Situation">${RS_POSTS.map(x => `<button class="chip" data-p="${x.id}" aria-pressed="${x.id===p.id}">${x.net} · ${esc(x.nom)}</button>`).join("")}</div>
+     <div class="tip"><b>Situation (${p.net}) :</b> ${esc(p.sit)}<br><small>${p.net} : ${esc(RESEAUX[p.net].ton)} ${RESEAUX[p.net].ht[0]} à ${RESEAUX[p.net].ht[1]} hashtags.</small></div>
+     <div class="rs-grid"><div class="build-steps">${RS_FIELDS.map(([k, l, h], n) => `<div class="bstep"><label for="rs-${k}"><span class="bn">${n+1}</span> <b>${esc(p.net === "TikTok" && k === "acc" ? "Accroche (0-3 s)" : p.net === "TikTok" && k === "msg" ? "Ce qu’on voit et entend (3-20 s)" : l)}</b> <span class="muted">— ${esc(h)}</span></label><textarea id="rs-${k}" data-rk="${k}" rows="2">${esc(v[k] || "")}</textarea></div>`).join("")}
+       <div class="row"><button class="btn primary" data-r="check">Vérifier ma publication</button><button class="btn" data-r="model">Voir un modèle</button><button class="btn ghost" data-r="clear">Effacer</button></div><ul class="checks" id="rs-checks"></ul></div>
+      <div><p class="eyebrow">Aperçu</p><div id="rs-prev"></div></div></div>`;
+    const upd = () => { $("#rs-prev").innerHTML = rsPreview(p, v); };
+    upd();
+    body.oninput = e => { const t = e.target.closest("[data-rk]"); if (t) { v[t.dataset.rk] = t.value; save(); upd(); } };
+    body.onclick = e => { const c = e.target.closest("[data-p]"); if (c) { STATE.rs.p = c.dataset.p; save(); atRS("post"); return; }
+      const b = e.target.closest("[data-r]"); if (!b) return;
+      if (b.dataset.r === "model") { Object.assign(v, p.model); save(); RS_FIELDS.forEach(([k]) => $("#rs-" + k).value = v[k] || ""); upd(); toast("Modèle chargé : compare avec ta version"); }
+      if (b.dataset.r === "clear") { RS_FIELDS.forEach(([k]) => delete v[k]); save(); atRS("post"); return; }
+      const C = rsChecks(p, v); const ok = C.filter(c => c[1]).length;
+      $("#rs-checks").innerHTML = C.map(([l, g]) => `<li class="${g ? "on" : ""}">${esc(l)}</li>`).join("") + `<li class="sum ${ok === C.length ? "on" : ""}"><b>${ok} / ${C.length} critères</b>${ok === C.length ? " : publication prête !" : " — corrige les points non cochés."}</li>`; };
+  }
+  if (sub === "audit") {
+    STATE.rs.a ??= {}; const A = STATE.rs.a;
+    body.innerHTML = `<p class="muted">Voici la page Facebook (inventée) du cabinet Assur’Pro. Classe chaque constat : faiblesse <b>quantitative</b> (ce qui se compte), <b>qualitative</b> (la qualité) ou <b>pas une faiblesse</b>.</p>
+     <div class="post facebook audit"><div class="post-h"><span class="av">AP</span><span><b>Cabinet Assur’Pro</b><small>Entreprise locale · 38 J’aime · 41 abonnés</small></span></div>
+      <div class="post-b"><p><small>À propos : 01 43 XX XX XX — (pas d’horaires, pas de site)</small></p><p><small>Publication du 12 mars (il y a 8 mois)</small><br>Nous sommes ouvert demain pour vos devis. # assurance #Assurance auto</p>
+      <p><small>Avis (3) : ★★★★★ « Très bon conseil » · ★★★★☆ · ★☆☆☆☆ « Personne ne répond au téléphone » — <i>pas de réponse</i></small></p></div></div>
+     <div class="audit-list">${RS_AUDIT.map(([t], n) => `<div class="crit-row"><span>${esc(t)}</span><div class="seg3" role="group">${["Quantitative","Qualitative","Pas une faiblesse"].map(c => `<button type="button" data-ai="${n}" data-av="${c}" aria-pressed="${A[n]===c}">${c}</button>`).join("")}</div><small class="aex" data-aex="${n}" hidden></small></div>`).join("")}</div>
+     <div class="row"><button class="btn primary" data-au="check">Vérifier</button><button class="btn ghost" data-au="reset">Recommencer</button></div><p class="feedback" id="au-fb"></p>`;
+    body.onclick = e => { const b = e.target.closest("[data-ai]");
+      if (b) { A[b.dataset.ai] = b.dataset.av; save(); $$(`[data-ai="${b.dataset.ai}"]`, body).forEach(x => { x.setAttribute("aria-pressed", x === b); x.classList.remove("good","bad"); }); return; }
+      const a = e.target.closest("[data-au]"); if (!a) return;
+      if (a.dataset.au === "reset") { STATE.rs.a = {}; save(); atRS("audit"); return; }
+      let ok = 0; RS_AUDIT.forEach(([t, g, ex], n) => { const good = A[n] === g; if (good) ok++; const ae = $(`[data-aex="${n}"]`, body); ae.hidden = false; ae.textContent = (good ? "✓ " : `✕ Réponse : ${g}. `) + ex; ae.className = "aex " + (good ? "ok" : "ko"); });
+      const fb = $("#au-fb"); fb.className = "feedback " + (ok >= 8 ? "ok" : "ko"); fb.textContent = `${ok} / ${RS_AUDIT.length} bien classés. Astuce : quantitatif = un nombre (abonnés, avis, fréquence) ; qualitatif = la qualité (contenu, réponses, orthographe, informations).`; };
+  }
+}
+
+/* ---------- Atelier EXPLOITER LES ANNEXES ---------- */
+const CAMP = [["Jan",2],["Fév",2],["Mar",5],["Avr",18],["Mai",25],["Juin",48],["Juil",95],["Août",102],["Sep",30],["Oct",8],["Nov",2],["Déc",3]];
+function campChart(){
+  const W = 560, H = 230, m = 30, bw = (W - m - 10) / CAMP.length, max = 110;
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Histogramme du chiffre d’affaires mensuel du camping"><g font-size="13" fill="currentColor">
+   ${[0,25,50,75,100].map(v => { const y = H - 24 - v / max * (H - 40); return `<line x1="${m}" x2="${W-6}" y1="${y}" y2="${y}" stroke="currentColor" stroke-opacity=".15"/><text x="${m-4}" y="${y+4}" text-anchor="end" opacity=".7">${v}</text>`; }).join("")}
+   ${CAMP.map(([l, v], n) => { const h = v / max * (H - 40), x = m + 4 + n * bw, y = H - 24 - h; return `<rect x="${x}" y="${y}" width="${bw - 8}" height="${h}" rx="3" class="barc"/><text x="${x + (bw-8)/2}" y="${H-8}" text-anchor="middle" opacity=".8">${l}</text>`; }).join("")}</g></svg>`;
+}
+const ANNEXES = {
+ tableau:{nom:"Un tableau", doc:`<div class="doc"><p class="doc-t">Ressource 3 — Résultats des commerciaux de l’agence Habitat+ (1er trimestre) <span class="muted">· Source : agence Habitat+</span></p>
+  <div class="tbl-wrap"><table class="doc-tbl"><thead><tr><th>Commercial</th><th>Objectif de CA (€)</th><th>CA réalisé (€)</th><th>Nombre de RDV</th></tr></thead>
+  <tbody><tr><td>Léa</td><td>60 000</td><td>54 000</td><td>30</td></tr><tr><td>Hugo</td><td>50 000</td><td>55 000</td><td>22</td></tr><tr><td>Inès</td><td>40 000</td><td>38 000</td><td>25</td></tr><tr class="tot"><td>Total</td><td>150 000</td><td>147 000</td><td>77</td></tr></tbody></table></div></div>`,
+  q:[qcm("Quel commercial a le meilleur taux de réalisation de son objectif ?","Hugo (110 %)",["Léa, car son CA est le plus élevé","Inès (95 %)","Léa (90 %)"],"Il faut comparer CA réalisé ÷ objectif, pas le CA brut : Hugo 55 000 ÷ 50 000 = 110 %.","calc:real"),
+     num("Quel est le taux de réalisation de toute l’équipe (en %) ?",98,"%","147 000 ÷ 150 000 × 100 = 98 %. Utilise la ligne « Total ».","calc:real"),
+     num("Quel est le CA moyen par rendez-vous de Léa (en €) ?",1800,"€","54 000 ÷ 30 = 1 800 € par rendez-vous.","calc:panier"),
+     qcm("Quelle information ce tableau NE donne PAS ?","Le nombre de ventes",["Le nombre de rendez-vous","L’objectif de chaque commercial","Le CA réalisé"],"Le tableau donne les RDV mais pas les ventes : ne jamais inventer une donnée absente.")]},
+ graphique:{nom:"Un graphique", doc:`<div class="doc"><p class="doc-t">Ressource 5 — Chiffre d’affaires mensuel du camping Les Pins (en milliers d’euros) <span class="muted">· Total annuel : 340 k€</span></p>${""}</div>`,
+  q:[qcm("Quel est le mois où le CA est le plus élevé ?","Août",["Juillet","Juin","Septembre"],"La barre la plus haute est celle d’août (102 k€). Lis toujours l’axe vertical et son unité.","at:annexe"),
+     num("Quel est le CA de juillet et août réunis (en milliers d’€) ?",197,"k€","95 + 102 = 197 k€.","calc:part"),
+     num("Quelle part du CA annuel est réalisée en juillet-août (en %) ?",57.94,"%","197 ÷ 340 × 100 = 57,94 % : plus de la moitié du CA en 2 mois.","calc:part"),
+     qcm("Que montre ce graphique ?","Une forte saisonnalité de l’activité",["Une baisse continue des ventes","Une activité régulière toute l’année","Une hausse des prix"],"L’activité est concentrée l’été : c’est la saisonnalité. Une phrase d’analyse : constat + chiffre + conséquence.","at:build-analyse")]},
+ texte:{nom:"Un texte", doc:`<div class="doc"><p class="doc-t">Ressource 2 — Le marché du vélo électrique <span class="muted">· D’après un article de presse, 2025 (document inventé)</span></p>
+  <p>① Les ventes de vélos à assistance électrique ont progressé de 12 % en un an. ② Les collectivités multiplient les aides à l’achat et les pistes cyclables. ③ Cependant, le prix moyen, autour de 2 000 €, freine encore de nombreux ménages. ④ De nouveaux acteurs vendent uniquement en ligne, à des prix agressifs. ⑤ Les entreprises s’intéressent aux flottes de vélos pour leurs salariés.</p></div>`,
+  q:[qcm("Quelle phrase présente une OPPORTUNITÉ pour un vendeur de vélos électriques ?","② les aides à l’achat et les pistes cyclables",["③ le prix moyen freine les ménages","④ des concurrents vendent en ligne","Aucune"],"Une opportunité est un fait du marché favorable à l’entreprise.","at:swot"),
+     qcm("Quelle phrase présente une MENACE ?","④ des acteurs en ligne à prix agressifs",["① les ventes progressent de 12 %","⑤ les entreprises s’intéressent aux flottes","② les aides à l’achat"],"La concurrence nouvelle est défavorable : menace.","at:swot"),
+     qcm("Quel chiffre prouve que le marché est en croissance ?","+12 % de ventes en un an",["2 000 € de prix moyen","5 phrases","2025"],"Cite toujours le chiffre qui prouve ce que tu affirmes.","at:annexe"),
+     qcm("Pourquoi faut-il regarder la source et la date d’un document ?","Pour savoir si l’information est fiable et récente",["Pour recopier le titre","Ce n’est pas utile","Pour compter les mots"],"Une donnée ancienne ou sans source se cite avec prudence.")]},
+ ressources:{nom:"Choisir la ressource", doc:`<div class="doc"><p class="doc-t">Liste des ressources d’un sujet (inventé) — Agence Habitat+</p><ul class="doc-list"><li>R1 — Présentation de l’agence</li><li>R2 — Le marché immobilier local</li><li>R3 — Résultats des commerciaux</li><li>R4 — Tarifs du salon de l’habitat</li><li>R5 — Note de service : frais de déplacement et repas</li><li>R6 — Avis clients sur Google</li></ul></div>`,
+  q:[qcm("« Évaluer le coût de la participation au salon » : quelles ressources utiliser ?","R4 et R5",["R1 et R2","R3 seulement","R6"],"Le coût = tarifs du salon (R4) + frais du personnel (R5).","calc:cout"),
+     qcm("« Repérer les opportunités du marché » : quelle ressource ?","R2",["R3","R4","R5"],"Le marché (externe) est décrit dans R2.","at:swot"),
+     qcm("« Relever deux forces de l’agence » : quelles ressources ?","R1, R3 et R6",["R2 seulement","R4 et R5","Aucune"],"Les forces sont internes : présentation, résultats, avis clients.","at:swot"),
+     qcm("Quelle est la meilleure méthode avant de répondre ?","Noter à côté de chaque question les ressources utiles",["Lire seulement la première ressource","Répondre de mémoire","Tout recopier"],"La consigne indique souvent les ressources : « À partir des ressources 1 à 5… ».")]}
+};
+function atAnnexe(sub = "tableau"){
+  atBar("annexe"); const box = $("#atelier"); const A = ANNEXES[sub] ? sub : "tableau";
+  box.innerHTML = `${subTabs(Object.entries(ANNEXES).map(([k, a]) => [k, a.nom]), A)}
+   <div class="tip"><b>Méthode en 4 temps :</b> ① lis le titre, la source et la date ; ② repère les unités (€, k€, %, période) ; ③ surligne seulement les chiffres utiles à la question ; ④ écris une phrase : « D’après la ressource X, … ».</div><div id="an-q"></div>`;
+  box.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) atAnnexe(b.dataset.sub); };
+  const doc = A === "graphique" ? ANNEXES.graphique.doc.replace("</div>", campChart() + "</div>") : ANNEXES[A].doc;
+  miniQuiz($("#an-q"), ANNEXES[A].q, {doc});
+}
+
+/* ---------- Atelier PLANIFIER ---------- */
+const RETRO = {
+ salon:{nom:"Salon professionnel", steps:[["J-120","Fixer les objectifs (contacts, RDV, ventes) et le budget"],["J-90","Réserver le stand et les options auprès de l’organisateur"],["J-60","Commander les supports : kakémono, flyers, goodies"],["J-30","Envoyer les invitations aux clients et prospects"],["J-15","Relancer les invités et fixer des rendez-vous sur le stand"],["J-7","Préparer le stand, le planning de l’équipe et l’argumentaire"],["Jour J","Accueillir les visiteurs et enregistrer chaque contact"],["J+7","Relancer les contacts et faire le bilan chiffré"]]},
+ po:{nom:"Portes ouvertes", steps:[["J-60","Définir la cible, la date et les objectifs"],["J-45","Prévoir le budget et réserver les prestataires (traiteur, animation)"],["J-30","Créer l’invitation et la publication pour les réseaux sociaux"],["J-21","Envoyer les invitations (e-mailing, SMS)"],["J-7","Relancer par téléphone et confirmer les inscrits"],["Jour J","Accueillir, présenter l’offre, recueillir les coordonnées"],["J+2","Envoyer un questionnaire de satisfaction"],["J+7","Analyser les résultats et relancer les prospects"]]}
+};
+function atPlanif(sub = "retro"){
+  atBar("planif"); const box = $("#atelier");
+  box.innerHTML = `${subTabs([["retro","Rétroplanning"],["prosp","Plan de prospection"]], sub)}<div id="pl-body"></div>`;
+  box.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) atPlanif(b.dataset.sub); };
+  const body = $("#pl-body");
+  if (sub === "prosp") { atBuild("prosp", body); return; }
+  let kind = "salon", order = shuffle(RETRO.salon.steps.map((_, n) => n));
+  const draw = checked => { const R = RETRO[kind];
+    body.innerHTML = `<div class="row" style="justify-content:space-between"><p class="muted" style="margin:0">Remets les tâches dans l’ordre chronologique avec les flèches. Un rétroplanning part de la date de l’événement (jour J) et remonte le temps.</p>
+     <div class="seg" role="group">${Object.entries(RETRO).map(([k, r]) => `<button data-rk="${k}" aria-pressed="${k===kind}">${r.nom}</button>`).join("")}</div></div>
+     <ol class="order-list">${order.map((idx, pos) => `<li class="${checked ? (idx === pos ? "good" : "bad") : ""}"><span>${checked ? `<b class="mono">${R.steps[idx][0]}</b> · ` : ""}${esc(R.steps[idx][1])}</span><button class="mv" data-up="${pos}" aria-label="Monter">↑</button><button class="mv" data-down="${pos}" aria-label="Descendre">↓</button></li>`).join("")}</ol>
+     <div class="row"><button class="btn primary" data-pg="check">Vérifier</button><button class="btn" data-pg="sol">Voir le rétroplanning</button><button class="btn ghost" data-pg="mix">Mélanger</button></div>
+     ${checked ? `<p class="feedback ${order.every((v, n) => v === n) ? "ok" : "ko"}">${order.filter((v, n) => v === n).length} / ${order.length} tâches bien placées. Retiens la logique : objectifs → réservations → supports → invitations → relances → jour J → bilan.</p>` : ""}`; };
+  body.onclick = e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.rk) { kind = b.dataset.rk; order = shuffle(RETRO[kind].steps.map((_, n) => n)); draw(false); }
+    if (b.dataset.up) { const n = +b.dataset.up; if (n > 0) [order[n-1], order[n]] = [order[n], order[n-1]]; draw(false); }
+    if (b.dataset.down) { const n = +b.dataset.down; if (n < order.length - 1) [order[n+1], order[n]] = [order[n], order[n+1]]; draw(false); }
+    if (b.dataset.pg === "check") draw(true); if (b.dataset.pg === "sol") { order = order.map((_, n) => n); draw(true); } if (b.dataset.pg === "mix") { order = shuffle(order); draw(false); } };
+  draw(false);
+}
+
+/* ---------- Atelier QUESTIONNAIRE ---------- */
+const QTYPES = ["Question fermée","Choix multiples","Échelle de satisfaction","Question ouverte","Question orientée (à éviter)"];
+const QT_ITEMS = [
+ ["Êtes-vous déjà client de notre agence ? Oui / Non","Question fermée","Deux réponses possibles : oui ou non."],
+ ["Comment nous avez-vous connus ? ☐ Bouche-à-oreille ☐ Réseaux sociaux ☐ Affiche ☐ Autre","Choix multiples","Plusieurs propositions cochables."],
+ ["Notez l’accueil : Très satisfait / Satisfait / Peu satisfait / Insatisfait","Échelle de satisfaction","Une échelle permet de mesurer un niveau, puis de calculer des pourcentages."],
+ ["Que pourrions-nous améliorer ?","Question ouverte","Réponse libre : riche, mais difficile à chiffrer. À mettre en fin de questionnaire."],
+ ["Ne trouvez-vous pas que nos prix sont très avantageux ?","Question orientée (à éviter)","La formulation pousse à répondre oui : les résultats seraient faussés. Reste neutre."],
+ ["Recommanderiez-vous notre salon à un collègue ? Oui / Non","Question fermée","Oui ou non : fermée."],
+ ["Sur une note de 1 à 5, quelle est votre satisfaction concernant les activités ?","Échelle de satisfaction","Une note de 1 à 5 est une échelle."],
+ ["Vous avez sûrement adoré notre nouveau stand, n’est-ce pas ?","Question orientée (à éviter)","« Sûrement adoré » influence la réponse : à éviter."]
+];
+const ENQ_DOC = `<div class="doc"><p class="doc-t">Résultats de l’enquête — Portes ouvertes Habitat+ <span class="muted">· 40 personnes interrogées · objectif : 75 % de satisfaits (satisfaits + très satisfaits)</span></p>
+ <div class="tbl-wrap"><table class="doc-tbl"><thead><tr><th>Critère</th><th>Très satisfait</th><th>Satisfait</th><th>Peu satisfait</th><th>Insatisfait</th></tr></thead>
+ <tbody><tr><td>Accueil</td><td>18</td><td>14</td><td>6</td><td>2</td></tr><tr><td>Conseils</td><td>12</td><td>16</td><td>8</td><td>4</td></tr><tr><td>Prix</td><td>4</td><td>10</td><td>16</td><td>10</td></tr></tbody></table></div></div>`;
+function atEnquete(sub = "types"){
+  atBar("enquete"); const box = $("#atelier");
+  box.innerHTML = `${subTabs([["types","Reconnaître les questions"],["rediger","Rédiger un questionnaire"],["exploiter","Exploiter les résultats"]], sub)}<div id="eq-body"></div>`;
+  box.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) atEnquete(b.dataset.sub); };
+  const body = $("#eq-body");
+  if (sub === "types") { body.innerHTML = `<p class="muted">Quel est le type de chaque question ? Une bonne enquête mélange questions fermées, échelles et une question ouverte, et n’oriente jamais la réponse.</p><div id="eq-q"></div>`;
+    miniQuiz($("#eq-q"), shuffle(QT_ITEMS).map(([q, g, ex]) => qcm(q, g, QTYPES.filter(t => t !== g).slice(0, 3), esc(ex), "at:enquete"))); }
+  if (sub === "rediger") atBuild("questionnaire", body);
+  if (sub === "exploiter") { body.innerHTML = `<p class="muted">Taux de satisfaction = (très satisfaits + satisfaits) ÷ nombre de personnes interrogées × 100.</p><div id="eq-q"></div>`;
+    miniQuiz($("#eq-q"), [
+     num("Quel est le taux de satisfaction pour l’accueil (en %) ?",80,"%","(18 + 14) ÷ 40 × 100 = 80 %.","calc:part"),
+     num("Quel est le taux de satisfaction pour les conseils (en %) ?",70,"%","(12 + 16) ÷ 40 × 100 = 70 %.","calc:part"),
+     num("Quel est le taux de satisfaction pour les prix (en %) ?",35,"%","(4 + 10) ÷ 40 × 100 = 35 %.","calc:part"),
+     qcm("Quels critères atteignent l’objectif de 75 % ?","L’accueil seulement",["Tous les critères","L’accueil et les conseils","Aucun"],"Accueil 80 % ✓ ; conseils 70 % ✗ ; prix 35 % ✗.","at:build-analyse"),
+     qcm("Quelle action proposer en priorité ?","Travailler sur les prix (offre, remise, packs)",["Changer l’accueil","Ne rien changer","Supprimer l’enquête"],"On agit d’abord sur le critère le plus faible : les prix (35 %).","at:build-axes")
+    ], {doc: ENQ_DOC}); }
+}
+
+/* ---------- Atelier MAQUETTE ---------- */
+function atMaquette(){ atBar("maquette"); const box = $("#atelier"); box.onclick = null; atBuild("maquette", box); }
+
+/* ===================== Fiches mémo + révision express ===================== */
+const MEMOS = [
+ ["Les formules à connaître", () => FORMULES.map(([a, b]) => `${a} = ${b}`)],
+ ["Le plan d’appel (prise de RDV)", () => ["1. Saluer, se présenter (nom, entreprise), vérifier l’interlocuteur ou franchir le barrage.","2. Accroche : une phrase qui donne envie d’écouter (chiffre, nouveauté, avantage).","3. Découverte : 1 ou 2 questions sur la situation du prospect.","4. Proposer le rendez-vous avec une alternative : « mardi 10 h ou jeudi 15 h ? ».","5. Traiter les objections : écouter, reformuler, répondre.","6. Reformuler le RDV (date, heure, lieu), remercier, prendre congé."]],
+ ["Argumenter : CAP + SONCASE", () => ["CAP : Caractéristique (ce que c’est) → Avantage (ce que ça apporte AU client) → Preuve (chiffre, avis, label, démonstration).","S = Sécurité · O = Orgueil · N = Nouveauté · C = Confort · A = Argent · S = Sympathie · E = Environnement.","Un argument = un mobile + C-A-P, adapté à la cible."]],
+ ["Analyser et proposer", () => ["Analyser = constat chiffré → comparaison (objectif, année précédente, écart) → explication → conclusion.","Axe d’amélioration = constat chiffré → problème → action concrète → moyens (qui, quand, budget) → résultat attendu.","Opportunités / menaces = le marché (externe). Forces / faiblesses = l’entreprise (interne)."]],
+ ["Les écrits professionnels", () => ["Note : De / À / Date / Objet → introduction → développement → conclusion → signature.","Courriel : objet précis → formule d’appel → introduction → informations demandées → action attendue (avant quand) → formule de politesse → signature complète.","SMS : émetteur → offre chiffrée → date limite → lien ou contact → STOP + numéro (160 caractères).","Invitation / flyer : émetteur → titre → visuel → offre → date, heure, lieu → appel à l’action → coordonnées et mentions."]],
+ ["Les réseaux sociaux", () => Object.entries(RESEAUX).map(([n, r]) => `${n} : ${r.pub} ${r.use} Hashtags : ${r.ht[0]} à ${r.ht[1]}.`).concat(["Une publication = accroche → message → information clé (date, prix) → appel à l’action → hashtags (marque + thème, sans espace ni accent) → visuel."])],
+ ["Le jour de l’épreuve", () => ASTUCES.map(([t, d]) => `${t} : ${d}`)]
+];
+function drawMemos(){
+  const el = $("#memos"); if (!el) return;
+  el.innerHTML = `<div class="memo-list">${MEMOS.map(([t, f]) => `<details class="memo"><summary>${esc(t)}</summary><ul>${f().map(l => `<li>${esc(l)}</li>`).join("")}</ul></details>`).join("")}</div>
+   <div class="row"><button class="btn primary" id="memo-dl">Télécharger les fiches mémo (Word, à imprimer)</button></div>`;
+  $("#memo-dl").onclick = async () => {
+    const blocks = [["h1","Coach E2 — Fiches mémo"],["small","Bac Pro Métiers du commerce et de la vente · option B · Épreuve E2"]];
+    MEMOS.forEach(([t, f]) => { blocks.push(["h2", t]); f().forEach(l => blocks.push(["p", "• " + l])); });
+    const blob = docxBlob(blocks), filename = "fiches-memo-coach-E2.docx";
+    if (DL) { try { await DL.save({filename, data: blob}); toast("Fiches enregistrées"); } catch (err) { if (err?.code !== "declined") toast("Téléchargement impossible ici"); } }
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); }
+  };
+}
+function runExpress(){
+  const box = $("#diag-box"); const items = [];
+  const notions = shuffle(NOTIONS).slice(0, 3);
+  notions.forEach(n => items.push(qcm(`Quelle notion correspond à cette définition ? « ${n[2]} »`, n[0], shuffle(NOTIONS.filter(x => x[0] !== n[0])).slice(0, 3).map(x => x[0]), `Il s’agit de : <b>${esc(n[0])}</b>.`, "no:" + n[1])));
+  shuffle(Object.keys(GEN)).slice(0, 3).forEach(k => { const ex = GEN[k].f(); items.push(num(ex.q, ex.ans, ex.u, ex.steps.map(esc).join("<br>"), "calc:" + k, ex.tol ?? 0.011)); });
+  shuffle(RS_CHOIX).slice(0, 2).forEach(([q, g, ex]) => items.push(qcm(q, g, shuffle(Object.keys(RESEAUX).filter(n => n !== g)).slice(0, 3), esc(ex), "at:rs-choix")));
+  shuffle(DIAG.filter(d => d[1] === "qcm")).slice(0, 2).forEach(d => items.push(qcm(d[2], d[3][0], d[3].slice(1), esc(d[4]), COMPS.find(c => c[0] === d[0])[3][0])));
+  box.innerHTML = `<div class="panel" style="display:grid;gap:10px"><p class="eyebrow">⚡ Révision express · 10 questions mélangées</p><div id="ex-q"></div></div>`;
+  miniQuiz($("#ex-q"), shuffle(items)); box.scrollIntoView({block:"start"});
+}
+
+/* ===================== Sauvegarde : exporter / importer ma progression ===================== */
+function ensureState(){ STATE.sujets ??= {}; STATE.calc ??= {ok:0,total:0,streak:0}; STATE.known ??= {}; STATE.keys ??= {}; STATE.build ??= {}; STATE.rs ??= {}; STATE.ident ??= {nom:"", classe:""}; STATE.hist ??= []; }
+function backupData(){ const d = JSON.parse(JSON.stringify(STATE)); delete d.keys; delete d.lastBackup; return {app:"coach-e2", v:1, date:new Date().toISOString(), data:d}; }
+const toCode = o => btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+function fromAny(txt){
+  txt = String(txt).trim(); let o;
+  try { o = JSON.parse(txt); } catch (e) { try { o = JSON.parse(decodeURIComponent(escape(atob(txt.replace(/\s+/g, ""))))); } catch (e2) { o = null; } }
+  if (!o || o.app !== "coach-e2" || typeof o.data !== "object") throw new Error("Ce fichier ou ce code n’est pas une sauvegarde de Coach E2.");
+  return o;
+}
+function mergeState(inc, mode){
+  delete inc.keys;
+  if (mode === "replace") { const keys = STATE.keys, last = STATE.lastBackup; Object.keys(STATE).forEach(k => delete STATE[k]); Object.assign(STATE, inc); STATE.keys = keys || {}; if (last) STATE.lastBackup = last; ensureState(); return; }
+  ensureState();
+  const fill = (dst, src) => { Object.entries(src || {}).forEach(([k, v]) => { if (dst[k] === undefined || dst[k] === null || dst[k] === "") dst[k] = v; }); };
+  Object.entries(inc.sujets || {}).forEach(([id, S]) => {
+    const L = STATE.sujets[id]; if (!L) { STATE.sujets[id] = S; return; }
+    const localEmpty = !Object.keys(L.a || {}).length; if (localEmpty) { L.mode = S.mode; L.start = S.start; L.done = S.done; }
+    L.a ??= {}; Object.entries(S.a || {}).forEach(([n, q]) => { const l = L.a[n]; if (!l) { L.a[n] = q; return; }
+      if ((q.text || "").trim().length > (l.text || "").trim().length) l.text = q.text;
+      l.f ??= {}; fill(l.f, q.f); if (!Object.keys(l.sel || {}).length && Object.keys(q.sel || {}).length) l.sel = q.sel;
+      l.chk ??= {}; fill(l.chk, q.chk); l.hard = !!(l.hard || q.hard); l.rev = !!(l.rev || q.rev); });
+  });
+  if ((inc.calc?.total || 0) > (STATE.calc.total || 0)) STATE.calc = inc.calc;
+  Object.entries(inc.known || {}).forEach(([k, v]) => { if (v) STATE.known[k] = true; });
+  if (inc.diag && (!STATE.diag || inc.diag.date > STATE.diag.date)) STATE.diag = inc.diag;
+  const days = new Set(STATE.hist.map(h => h.d)); (inc.hist || []).forEach(h => { if (!days.has(h.d)) STATE.hist.push(h); }); STATE.hist.sort((a, b) => a.d < b.d ? -1 : 1);
+  Object.entries(inc.build || {}).forEach(([k, b]) => { if (k === "_k") return; const l = STATE.build[k]; if (!l) STATE.build[k] = b; else { l.v ??= {}; fill(l.v, b.v); } });
+  if (inc.rs) { STATE.rs.v ??= {}; Object.entries(inc.rs.v || {}).forEach(([k, v]) => { STATE.rs.v[k] ??= {}; fill(STATE.rs.v[k], v); }); STATE.rs.a ??= {}; fill(STATE.rs.a, inc.rs.a); }
+  if (!STATE.ident.nom && inc.ident?.nom) STATE.ident = inc.ident;
+}
+async function doImport(txt, mode, fb){
+  try { const o = fromAny(txt); mergeState(o.data, mode); save();
+    renderGrid(); drawCards(); drawParcours(); fb = $("#backup-box [data-bk-fb]") || fb;
+    toast(mode === "replace" ? "Progression remplacée par la sauvegarde" : "Progression fusionnée : rien n’a été perdu");
+    fb.className = "feedback ok"; fb.textContent = `✓ Sauvegarde du ${new Date(o.date).toLocaleDateString("fr-FR")} importée (${mode === "replace" ? "remplacement" : "fusion"}). Si un corrigé était débloqué, retape son mot de passe sur cet appareil.`; }
+  catch (e) { fb.className = "feedback ko"; fb.textContent = "✕ " + (e.message || "Import impossible : vérifie le fichier ou le code."); }
+}
+function backupPanel(){
+  const last = STATE.lastBackup; const days = last ? Math.floor((Date.now() - last) / 864e5) : null;
+  const hasWork = Object.keys(STATE.sujets).length || STATE.calc.total || STATE.diag;
+  return `<div class="panel backup" style="display:grid;gap:10px">
+   <h2 class="h2" style="font-size:1.2rem">💾 Mes données : exporter et importer</h2>
+   <p class="muted" style="margin:0">Ton travail est enregistré <b>seulement sur cet appareil</b>. Exporte-le régulièrement, puis importe-le sur ton autre appareil (téléphone ↔ ordinateur) : tu ne perds rien.</p>
+   <p class="${hasWork && (days === null || days >= 7) ? "warnline" : "muted"}" style="margin:0">${last ? `Dernier export : il y a ${days === 0 ? "moins d’un jour" : days + " jour" + (days > 1 ? "s" : "")}.` : "Tu n’as encore jamais exporté ta progression."}${hasWork && (days === null || days >= 7) ? " Pense à l’exporter maintenant !" : ""}</p>
+   <div class="bk-grid">
+    <div class="bk-col"><h3>1. Exporter (sauvegarder)</h3>
+     <button class="btn primary" data-bk-act="file">⬇️ Exporter ma progression (fichier)</button>
+     <button class="btn" data-bk-act="code">📋 Copier mon code de secours</button>
+     <small class="muted">Envoie le fichier ou le code par mail à toi-même, sur Pronote, l’ENT ou un cloud.</small></div>
+    <div class="bk-col"><h3>2. Importer (reprendre)</h3>
+     <fieldset class="bk-mode"><legend class="muted">Que faire avec ce qui est déjà sur cet appareil ?</legend>
+      <label><input type="radio" name="bk-mode" value="merge" checked> <b>Fusionner</b> (conseillé) : garde le travail des deux appareils</label>
+      <label><input type="radio" name="bk-mode" value="replace"> <b>Remplacer</b> : repart exactement de la sauvegarde</label></fieldset>
+     <label class="btn" style="justify-self:start">📂 Importer un fichier<input type="file" accept=".json,application/json,text/plain" data-bk-file hidden></label>
+     <details><summary class="muted">Je n’ai pas de fichier : coller un code de secours</summary><textarea data-bk-code rows="3" placeholder="Colle ici ton code de secours"></textarea><button class="btn sm" data-bk-act="paste">Importer ce code</button></details></div>
+   </div>
+   <p class="feedback" data-bk-fb aria-live="polite"></p>
+   <p class="muted" style="font-size:.8rem;margin:0">Les mots de passe des corrigés ne sont pas sauvegardés : retape-les sur le nouvel appareil.</p></div>`;
+}
+function bindBackup(root){
+  const fb = $("[data-bk-fb]", root); const mode = () => $("input[name=bk-mode]:checked", root)?.value || "merge";
+  root.addEventListener("change", async e => { const f = e.target.closest("[data-bk-file]"); if (!f || !f.files[0]) return; const txt = await f.files[0].text(); f.value = ""; doImport(txt, mode(), fb); });
+  root.addEventListener("click", async e => { const b = e.target.closest("[data-bk-act]"); if (!b) return;
+    if (b.dataset.bkAct === "file") {
+      const o = backupData(); const blob = new Blob([JSON.stringify(o)], {type:"application/json"});
+      const filename = `coach-e2-progression-${slug(STATE.ident.nom) || "eleve"}-${new Date().toISOString().slice(0, 10)}.json`;
+      let ok = false;
+      if (DL) { try { await DL.save({filename, data: blob}); ok = true; } catch (err) { if (err?.code === "declined") return; } }
+      if (!ok) { try { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); ok = true; } catch (err) {} }
+      if (ok) { STATE.lastBackup = Date.now(); save(); fb.className = "feedback ok"; fb.textContent = "✓ Fichier exporté. Envoie-le sur ton autre appareil, puis utilise « Importer un fichier »."; }
+      else { fb.className = "feedback ko"; fb.textContent = "Téléchargement impossible ici : utilise plutôt le code de secours."; }
+    }
+    if (b.dataset.bkAct === "code") {
+      const code = toCode(backupData());
+      try { await navigator.clipboard.writeText(code); STATE.lastBackup = Date.now(); save(); fb.className = "feedback ok"; fb.textContent = `✓ Code copié (${Math.round(code.length / 1000)} k caractères). Colle-le dans un mail ou un message à toi-même.`; }
+      catch (err) { const t = $("[data-bk-code]", root); t.closest("details").open = true; t.value = code; t.select(); STATE.lastBackup = Date.now(); save(); fb.className = "feedback ok"; fb.textContent = "Code affiché et sélectionné ci-dessus : copie-le (Ctrl + C ou appui long)."; }
+    }
+    if (b.dataset.bkAct === "paste") { const t = $("[data-bk-code]", root).value; if (!t.trim()) { fb.className = "feedback ko"; fb.textContent = "Colle d’abord ton code."; return; } doImport(t, mode(), fb); }
+  });
+}
+
+/* ===================== Calculs ===================== */
+const CALC = {current:null, type:"tout"};
+const PROD = [["CITROËN","AMI My AMI Tonic"],["Brasserie GOUDALE","fût de 30 L"],["E-DRAG’ON","VAE urbain"],["PYETA","pied de table Mikado"],["VIREVOLTE","parfum 50 ml"],["AIRSUB DRONE","prestation de comptage"]];
+const GEN = {
+ coef:{nom:"PV TTC (coefficient)", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(150,9000)/100); const k=pick([1.8,2,2.2,2.5,1.65]); const ans=r2(pa*k);
+   return {ctx:e, q:`Le prix d’achat HT d’un(e) ${p} est de ${fmt(pa)} €. L’entreprise applique un coefficient multiplicateur de ${fmt0(k)}. Calculez le prix de vente TTC.`, ans, u:"€", steps:[`PV TTC = PA HT × coefficient`,`PV TTC = ${fmt(pa)} × ${fmt0(k)} = ${fmt(ans)} €`]}; }},
+ ht:{nom:"TTC → HT", f:()=>{ const [e,p]=pick(PROD); const t=pick([20,20,20,5.5]); const ttc=r2(rnd(500,90000)/100); const ans=r2(ttc/(1+t/100));
+   return {ctx:e, q:`Un(e) ${p} est vendu(e) ${fmt(ttc)} € TTC (TVA ${fmt0(t)} %). Calculez le prix de vente HT.`, ans, u:"€", steps:[`PV HT = PV TTC ÷ (1 + taux de TVA)`,`PV HT = ${fmt(ttc)} ÷ ${fmt0(1+t/100)} = ${fmt(ans)} €`]}; }},
+ marge:{nom:"Marge unitaire", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(200,5000)/100); const pvht=r2(pa*(1+rnd(30,150)/100)); const ans=r2(pvht-pa);
+   return {ctx:e, q:`Pour un(e) ${p} : prix d’achat HT ${fmt(pa)} €, prix de vente HT ${fmt(pvht)} €. Calculez la marge unitaire.`, ans, u:"€", steps:[`Marge = PV HT − PA HT`,`Marge = ${fmt(pvht)} − ${fmt(pa)} = ${fmt(ans)} €`]}; }},
+ tmarque:{nom:"Taux de marque", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(200,5000)/100); const pvht=r2(pa*(1+rnd(25,140)/100)); const m=r2(pvht-pa); const ans=r2(m/pvht*100);
+   return {ctx:e, q:`Pour un(e) ${p} : PA HT ${fmt(pa)} €, PV HT ${fmt(pvht)} €. Calculez le taux de marque.`, ans, u:"%", steps:[`Marge = ${fmt(pvht)} − ${fmt(pa)} = ${fmt(m)} €`,`Taux de marque = marge ÷ PV HT × 100`,`= ${fmt(m)} ÷ ${fmt(pvht)} × 100 = ${fmt(ans)} %`]}; }},
+ tmarge:{nom:"Taux de marge", f:()=>{ const [e,p]=pick(PROD); const pa=r2(rnd(200,5000)/100); const pvht=r2(pa*(1+rnd(25,140)/100)); const m=r2(pvht-pa); const ans=r2(m/pa*100);
+   return {ctx:e, q:`Pour un(e) ${p} : PA HT ${fmt(pa)} €, PV HT ${fmt(pvht)} €. Calculez le taux de marge.`, ans, u:"%", steps:[`Marge = ${fmt(pvht)} − ${fmt(pa)} = ${fmt(m)} €`,`Taux de marge = marge ÷ PA HT × 100`,`= ${fmt(m)} ÷ ${fmt(pa)} × 100 = ${fmt(ans)} %`]}; }},
+ remise:{nom:"Prix remisé", f:()=>{ const [e,p]=pick(PROD); const pv=r2(rnd(300,20000)/100); const r=pick([5,10,15,20,25,30]); const ans=r2(pv*(1-r/100));
+   return {ctx:e, q:`Un(e) ${p} affiché(e) ${fmt(pv)} € TTC bénéficie d’une remise de ${r} %. Calculez le prix remisé TTC.`, ans, u:"€", steps:[`Prix remisé = prix × (1 − taux de remise)`,`= ${fmt(pv)} × ${fmt0(1-r/100)} = ${fmt(ans)} €`]}; }},
+ fourn:{nom:"Commande fournisseur", f:()=>{ const pu=r2(rnd(3500,7000)/100); const q=rnd(10,30); const seuil=pick([300,800,1000,1500]); const r=pick([5,10]); const brut=r2(pu*q); const ans= brut>=seuil ? r2(brut*(1-r/100)) : brut;
+   return {ctx:"PYETA · achat d’acier", q:`Le fournisseur de tubes d’acier facture ${fmt(pu)} € HT le mètre et accorde ${r} % de remise à partir de ${fmt0(seuil)} € de commande. Calculez le montant HT net d’une commande de ${q} mètres.`, ans, u:"€", steps:[`Montant brut = ${q} × ${fmt(pu)} = ${fmt(brut)} €`, brut>=seuil ? `${fmt(brut)} ≥ ${fmt0(seuil)} € → remise : ${fmt(brut)} × ${fmt0(1-r/100)} = ${fmt(ans)} €` : `${fmt(brut)} < ${fmt0(seuil)} € → pas de remise : ${fmt(ans)} €`]}; }},
+ evol:{nom:"Taux d’évolution", f:()=>{ const v1=rnd(800,20000); const v2=Math.round(v1*(1+rnd(-35,120)/100)); const lab=pick(["Le nombre d’AMI vendues","Le CA des clients professionnels (€)","Le nombre d’abonnés Instagram","Le nombre de visiteurs du stand"]); const a1=rnd(2019,2023); const ans=r2((v2-v1)/v1*100);
+   return {ctx:"Analyse de résultats", q:`${lab} passe de ${fmt0(v1)} en ${a1} à ${fmt0(v2)} en ${a1+1}. Calculez le taux d’évolution.`, ans, u:"%", steps:[`Taux d’évolution = (valeur d’arrivée − valeur de départ) ÷ valeur de départ × 100`,`= (${fmt0(v2)} − ${fmt0(v1)}) ÷ ${fmt0(v1)} × 100 = ${fmt(ans)} %`]}; }},
+ real:{nom:"Taux de réalisation", f:()=>{ const obj=pick([20,40,60,80,150,4300,9000,12000]); const res=Math.round(obj*(rnd(55,140)/100)); const lab=pick(["contacts utiles","rendez-vous","ventes","€ de chiffre d’affaires"]); const ans=r2(res/obj*100);
+   return {ctx:"Tableau de bord", q:`L’objectif était de ${fmt0(obj)} ${lab}. Le résultat est de ${fmt0(res)}. Calculez le taux de réalisation de l’objectif.`, ans, u:"%", steps:[`Taux de réalisation = résultat ÷ objectif × 100`,`= ${fmt0(res)} ÷ ${fmt0(obj)} × 100 = ${fmt(ans)} %`, ans>=100?`→ objectif atteint`:`→ objectif non atteint (écart ${fmt0(res-obj)})`]}; }},
+ prosp:{nom:"Ratios de prospection", f:()=>{ const ap=pick([80,120,150,200,250]); const ab=Math.round(ap*rnd(50,80)/100); const rdv=Math.round(ab*rnd(15,45)/100); const v=Math.max(1,Math.round(rdv*rnd(25,70)/100));
+   const which=pick(["ab","rdv","v","glob"]); let q,ans,steps;
+   const base=`Opération de phoning : ${ap} appels passés, ${ab} appels aboutis, ${rdv} rendez-vous, ${v} ventes.`;
+   if(which==="ab"){ans=r2(ab/ap*100);q=base+" Calculez le taux d’appels aboutis.";steps=[`= appels aboutis ÷ appels passés × 100`,`= ${ab} ÷ ${ap} × 100 = ${fmt(ans)} %`];}
+   if(which==="rdv"){ans=r2(rdv/ab*100);q=base+" Calculez le taux de prise de RDV (sur les appels aboutis).";steps=[`= RDV ÷ appels aboutis × 100`,`= ${rdv} ÷ ${ab} × 100 = ${fmt(ans)} %`];}
+   if(which==="v"){ans=r2(v/rdv*100);q=base+" Calculez le taux de transformation des RDV en ventes.";steps=[`= ventes ÷ RDV × 100`,`= ${v} ÷ ${rdv} × 100 = ${fmt(ans)} %`];}
+   if(which==="glob"){ans=r2(v/ap*100);q=base+" Calculez le taux de transformation global (ventes / appels passés).";steps=[`= ventes ÷ appels passés × 100`,`= ${v} ÷ ${ap} × 100 = ${fmt(ans)} %`];}
+   return {ctx:"Prospection téléphonique", q, ans, u:"%", steps}; }},
+ cout:{nom:"Coût d’un salon", f:()=>{ const stand=rnd(1200,4000); const pers=rnd(2,4); const nuits=rnd(1,3); const hotel=rnd(60,110); const repas=rnd(15,25); const nrep=(nuits+1)*2; const km=rnd(80,250); const sal=pers*rnd(300,550);
+   const ans=r2(stand+pers*nuits*hotel+pers*nrep*repas+km+sal);
+   return {ctx:"Salon professionnel", q:`Stand ${fmt0(stand)} € ; ${pers} commerciaux ; ${nuits} nuit(s) d’hôtel à ${hotel} € par personne ; ${nrep} repas par personne à ${repas} € ; frais kilométriques ${km} € ; salaires ${fmt0(sal)} €. Calculez le coût total du salon.`, ans, u:"€", steps:[`Hôtel = ${pers} × ${nuits} × ${hotel} = ${fmt0(pers*nuits*hotel)} €`,`Repas = ${pers} × ${nrep} × ${repas} = ${fmt0(pers*nrep*repas)} €`,`Total = ${fmt0(stand)} + ${fmt0(pers*nuits*hotel)} + ${fmt0(pers*nrep*repas)} + ${km} + ${fmt0(sal)} = ${fmt(ans)} €`]}; }},
+ renta:{nom:"Rentabilité d’une opération", f:()=>{ const ca=rnd(40,150)*100; const tm=pick([30,40,50,60]); const cout=rnd(15,70)*100+rnd(0,99); const m=r2(ca*tm/100); const ans=r2(m-cout);
+   return {ctx:"Bilan d’opération", q:`Une opération commerciale a généré ${fmt0(ca)} € HT de CA avec un taux de marque de ${tm} %. Elle a coûté ${fmt0(cout)} €. Calculez le résultat de l’opération.`, ans, u:"€", steps:[`Marge = CA HT × taux de marque = ${fmt0(ca)} × ${tm} % = ${fmt(m)} €`,`Résultat = marge − coût = ${fmt(m)} − ${fmt0(cout)} = ${fmt(ans)} €`, ans>=0?"→ opération rentable":"→ opération non rentable"]}; }},
+ engage:{nom:"Réseaux sociaux", f:()=>{ const vues=rnd(800,6000); const l=rnd(20,300),c=rnd(5,80),p=rnd(5,90); const clics=rnd(30,400); const which=pick(["eng","clic"]);
+   if(which==="eng"){const i=l+c+p; const ans=r2(i/vues*100); return {ctx:"Story / publication", q:`Une publication obtient ${vues} vues, ${l} likes, ${c} commentaires et ${p} partages. Calculez le taux d’engagement (interactions / vues).`, ans, u:"%", steps:[`Interactions = ${l} + ${c} + ${p} = ${i}`,`Taux d’engagement = ${i} ÷ ${vues} × 100 = ${fmt(ans)} %`]};}
+   const ans=r2(clics/vues*100); return {ctx:"Story / publication", q:`Une story a été vue ${vues} fois et a généré ${clics} clics sur le bouton d’action. Calculez le taux de clics.`, ans, u:"%", steps:[`Taux de clics = clics ÷ vues × 100`,`= ${clics} ÷ ${vues} × 100 = ${fmt(ans)} %`]}; }},
+ part:{nom:"Part dans un total", f:()=>{ const a=rnd(20,3000), b=rnd(20,3000), c=rnd(20,3000); const t=a+b+c; const ans=r2(a/t*100);
+   return {ctx:"Répartition des ventes", q:`Ventes par canal : concessions ${fmt0(a)}, site internet ${fmt0(b)}, partenaires ${fmt0(c)}. Calculez la part des concessions.`, ans, u:"%", steps:[`Total = ${fmt0(a)} + ${fmt0(b)} + ${fmt0(c)} = ${fmt0(t)}`,`Part = ${fmt0(a)} ÷ ${fmt0(t)} × 100 = ${fmt(ans)} %`]}; }},
+ contact:{nom:"Coût par contact / RDV", f:()=>{ const [e]=pick(PROD); const c=rnd(8,60)*100; const ct=rnd(40,250); const rdv=Math.max(3,Math.round(ct*rnd(10,35)/100)); const w=pick(["ct","rdv"]); const d=w==="ct"?ct:rdv; const ans=r2(c/d);
+   return {ctx:e, q:`Une opération de prospection a coûté ${fmt0(c)} €. Elle a permis d’obtenir ${ct} contacts et ${rdv} rendez-vous. Calculez le coût par ${w==="ct"?"contact":"rendez-vous"}.`, ans, u:"€", steps:[`Coût par ${w==="ct"?"contact":"RDV"} = coût de l’opération ÷ nombre de ${w==="ct"?"contacts":"RDV"}`,`= ${fmt0(c)} ÷ ${d} = ${fmt(ans)} €`]}; }},
+ panier:{nom:"Panier moyen", f:()=>{ const [e]=pick(PROD); const n=rnd(15,400); const ca=r2(n*rnd(2000,40000)/100); const ans=r2(ca/n);
+   return {ctx:e, q:`Sur un salon, ${n} clients ont acheté pour un chiffre d’affaires total de ${fmt(ca)} € HT. Calculez le panier moyen.`, ans, u:"€", steps:[`Panier moyen = CA ÷ nombre de clients`,`= ${fmt(ca)} ÷ ${n} = ${fmt(ans)} €`]}; }},
+ retour:{nom:"Taux de retour (mailing)", f:()=>{ const [e]=pick(PROD); const env=pick([500,800,1000,1500,2000,3000]); const rep=Math.round(env*rnd(2,15)/100); const ans=r2(rep/env*100);
+   return {ctx:e, q:`Un e-mailing a été envoyé à ${fmt0(env)} prospects. ${rep} personnes ont répondu (demande de devis ou de rendez-vous). Calculez le taux de retour.`, ans, u:"%", steps:[`Taux de retour = réponses ÷ envois × 100`,`= ${rep} ÷ ${fmt0(env)} × 100 = ${fmt(ans)} %`]}; }},
+ seuil:{nom:"Seuil de rentabilité (ventes)", f:()=>{ const [e]=pick(PROD); const c=rnd(20,90)*100; const m=rnd(25,400); const ans=Math.ceil(c/m);
+   return {ctx:e, q:`Une opération commerciale coûte ${fmt0(c)} €. Chaque vente rapporte une marge de ${fmt0(m)} €. Combien de ventes faut-il au minimum pour que l’opération soit rentable ?`, ans, u:"ventes", tol:0, steps:[`Nombre de ventes = coût de l’opération ÷ marge unitaire, arrondi à l’unité supérieure`,`= ${fmt0(c)} ÷ ${fmt0(m)} = ${fmt(c/m)} → ${ans} ventes`]}; }},
+ prev:{nom:"Prévision des ventes", f:()=>{ const v=rnd(1000,6000); const t=r2(rnd(-1500,4000)/100); const ans=Math.round(v*(1+t/100));
+   return {ctx:"Objectifs commerciaux", q:`Les ventes de l’an dernier sont de ${fmt0(v)} unités. On prévoit une évolution de ${fmt(t)} %. Calculez la prévision (arrondie à l’unité).`, ans, u:"unités", tol:1.01, steps:[`Prévision = ventes × (1 + taux)`,`= ${fmt0(v)} × ${fmt0(r2(1+t/100))} ≈ ${fmt0(ans)} unités`]}; }}
+};
+const FORMULES = [
+ ["PV TTC","PA HT × coefficient"],["PV HT","PV TTC ÷ 1,20"],["Marge unitaire","PV HT − PA HT"],["Taux de marque","marge ÷ PV HT × 100"],["Taux de marge","marge ÷ PA HT × 100"],
+ ["Prix remisé","prix × (1 − remise)"],["Taux d’évolution","(V2 − V1) ÷ V1 × 100"],["Taux de réalisation","résultat ÷ objectif × 100"],["Taux de transformation","étape ÷ étape précédente × 100"],
+ ["Marge globale","CA HT × taux de marque"],["Résultat d’une opération","marge − coût de l’opération"],["Taux d’engagement","interactions ÷ vues (ou abonnés) × 100"],["Taux de clics","clics ÷ vues × 100"],["Part","élément ÷ total × 100"],["Coût par contact (ou par RDV)","coût de l’opération ÷ nombre de contacts (ou de RDV)"],["Panier moyen","CA ÷ nombre de clients"],["Taux de retour","réponses ÷ envois × 100"],["Seuil de rentabilité (en ventes)","coût de l’opération ÷ marge unitaire, arrondi au supérieur"],["Taux de satisfaction","(satisfaits + très satisfaits) ÷ répondants × 100"]
+];
+$("#formules").innerHTML = FORMULES.map(([a,b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join("");
+$("#calc-types").innerHTML = `<button class="chip" data-t="tout" aria-pressed="true">Tout mélanger</button>` + Object.entries(GEN).map(([k,g]) => `<button class="chip" data-t="${k}" aria-pressed="false">${g.nom}</button>`).join("");
+$("#calc-types").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b) return; CALC.type = b.dataset.t; $$("#calc-types .chip").forEach(c => c.setAttribute("aria-pressed", c === b)); newExo(); });
+function drawStats(){ $("#st-ok").textContent = STATE.calc.ok; $("#st-total").textContent = STATE.calc.total; $("#st-streak").textContent = STATE.calc.streak; }
+function newExo(){
+  const k = CALC.type === "tout" ? pick(Object.keys(GEN)) : CALC.type; const ex = GEN[k].f(); ex.k = k; ex.tries = 0; ex.done = false; CALC.current = ex;
+  $("#exo").innerHTML = `<p class="ctxline">${esc(GEN[k].nom)} · ${esc(ex.ctx)}</p><p class="enonce">${esc(ex.q)}</p>
+   <form class="answer-row" id="calc-form"><label class="muted" for="calc-in">Ta réponse</label><input id="calc-in" inputmode="decimal" autocomplete="off" placeholder="0,00"><span class="mono">${esc(ex.u)}</span><button class="btn primary">Valider</button><button type="button" class="btn" id="calc-show">Voir la solution</button><button type="button" class="btn ghost" id="calc-next">Suivant →</button></form>
+   <p class="feedback" id="calc-fb" aria-live="polite"></p><div class="steps" id="calc-steps" hidden></div>`;
+  $("#calc-form").onsubmit = e => { e.preventDefault(); checkExo(); };
+  $("#calc-show").onclick = () => showSteps(true);
+  $("#calc-next").onclick = newExo;
+  drawStats();
+}
+function showSteps(gaveUp){ const ex = CALC.current; const s = $("#calc-steps"); s.hidden = false; s.innerHTML = ex.steps.map(x => `<div>${esc(x)}</div>`).join("") + `<div><b>Réponse : ${ex.u==="unités"?fmt0(ex.ans):fmt(ex.ans)} ${esc(ex.u)}</b></div>`;
+  if (gaveUp && !ex.done) { ex.done = true; STATE.calc.total++; STATE.calc.streak = 0; save(); drawStats(); } }
+function checkExo(){
+  const ex = CALC.current; const v = parseNum($("#calc-in").value); const fb = $("#calc-fb");
+  if (isNaN(v)) { fb.textContent = "Entre un nombre."; fb.className = "feedback ko"; return; }
+  const tol = ex.tol ?? 0.011; const ok = Math.abs(v - ex.ans) <= tol;
+  if (ok) { fb.textContent = "Juste ! Vérifie ta rédaction avec la solution."; fb.className = "feedback ok"; if (!ex.done) { ex.done = true; STATE.calc.ok++; STATE.calc.total++; STATE.calc.streak++; save(); } showSteps(false); }
+  else { ex.tries++; const pctTrap = ex.u === "%" && Math.abs(v*100 - ex.ans) < 0.05; fb.className = "feedback ko";
+    fb.textContent = pctTrap ? "Presque : n’oublie pas de multiplier par 100." : (ex.tries >= 2 ? "Encore faux. Regarde la solution détaillée." : "Pas encore. Relis la formule dans le formulaire et réessaie.");
+    if (ex.tries >= 2) showSteps(true); }
+  drawStats();
+}
+
+/* ===================== Ateliers ===================== */
+const PLAN = {
+  rdv:{titre:"Prise de rendez-vous (prospection)", steps:[
+   ["Saluer et vérifier l’interlocuteur","« Bonjour, je suis bien au restaurant L’Arborescence ? Pourrais-je parler au responsable ? »"],
+   ["Se présenter","« Camille Laplume, commerciale de la brasserie GOUDALE à Arques. »"],
+   ["Annoncer le motif avec une accroche","« Je vous appelle car le sans-alcool progresse de 16 % et nous lançons une bière cerise haut de gamme. »"],
+   ["Questionner pour découvrir le besoin","« Proposez-vous déjà des bières sans alcool à la pression ? »"],
+   ["Argumenter brièvement","« Fût bio, livré en 2 jours, prix de lancement à 1 € HT le litre. »"],
+   ["Proposer le rendez-vous avec une alternative","« Je peux passer vous la faire goûter mardi à 10 h ou jeudi à 15 h ? »"],
+   ["Traiter les objections","« Je comprends que vous ayez déjà un fournisseur, c’est justement pour compléter votre carte… »"],
+   ["Reformuler et confirmer","« Nous disons donc jeudi 15 h à Croix, je vous envoie une confirmation par e-mail. »"],
+   ["Prendre congé","« Merci pour votre accueil, bonne journée ! »"]]},
+  relance:{titre:"Relance après un courriel ou un SMS", steps:[
+   ["Saluer et vérifier l’interlocuteur","« Bonjour, Madame Poitevin ? »"],
+   ["Se présenter","« Ici le service commercial d’E-DRAG’ON à Calais. »"],
+   ["Rappeler le premier contact","« Nous vous avons envoyé la semaine dernière un courriel sur la prime à la conversion. »"],
+   ["Vérifier la réception et l’intérêt","« Avez-vous pu le lire ? Votre vélo actuel vous convient-il toujours ? »"],
+   ["Relancer avec l’argument clé","« Jusqu’à 500 € de reprise pour votre ancien vélo, jusqu’au 15 juillet. »"],
+   ["Proposer l’action (essai, RDV, commande)","« Venez l’essayer sur notre piste : samedi matin ou mercredi après-midi ? »"],
+   ["Traiter les objections","« Le prix vous inquiète ? Avec les aides cumulées… »"],
+   ["Reformuler et confirmer","« Samedi 10 h au showroom, 54 rue du Virval. »"],
+   ["Prendre congé","« Merci et à samedi ! »"]]}
+};
+const SONCAS = [
+ ["Le pied Mikado supporte jusqu’à 500 kg en version XXL : votre table ne bougera jamais.","Sécurité","La robustesse rassure : mobile Sécurité."],
+ ["Avec le bonus écologique, l’AMI ne vous coûte que 6 890 €, ou 19 € par mois.","Argent","Prix, aides, économies : mobile Argent."],
+ ["Une recette inédite de notre maître brasseur, en édition limitée.","Nouveauté","Innovation, exclusivité : mobile Nouveauté."],
+ ["Le fût est livré sous 2 jours avec un raccordement universel : rien à installer.","Confort","Facilité, gain de temps : mobile Confort."],
+ ["Vos clients verront que vous êtes la seule boutique de la ville à proposer cette marque.","Orgueil","Prestige, fierté, se démarquer : mobile Orgueil."],
+ ["Nos parfums sont 99,9 % naturels, vegan et fabriqués près de Grasse.","Environnement","Écologie, local, éthique : mobile Environnement (le E de SONCASE)."],
+ ["Votre conseillère vous accompagne en moyenne pendant 12 ans, à deux pas de chez vous.","Sympathie","Relation humaine, proximité : mobile Sympathie."],
+ ["Le drone survole vos cultures sans abîmer les sols et réduit vos achats d’engrais.","Argent","Réduire les dépenses de l’exploitant : mobile Argent (et Environnement en second)."],
+ ["Le marquage antivol Paravol est offert avec votre VAE.","Sécurité","Protection contre le vol : mobile Sécurité."],
+ ["Notre AMI est fermée et chauffée : votre enfant est protégé, contrairement au scooter.","Sécurité","Protection d’un proche : mobile Sécurité."],
+ ["Pieds démontables livrés en kit : stockage et transport faciles pour votre atelier.","Confort","Praticité : mobile Confort."],
+ ["Avec notre kit d’implantation, la PLV, les testeurs et les échantillons sont offerts.","Argent","Pas de frais de mise en place : mobile Argent."],
+ ["Gagnez un post avec l’influenceuse déco n° 1 en France !","Orgueil","Visibilité, notoriété personnelle : mobile Orgueil."],
+ ["Énergie 100 % verte et cartons recyclés dans notre atelier de Tuffalun.","Environnement","Démarche éco-responsable : mobile Environnement."]
+];
+const OBJ = [
+ ["« C’est trop cher. »","Reformulation + compensation","« Vous trouvez le prix élevé, je comprends. En contrepartie, l’entretien est offert pendant 2 ans et vous bénéficiez de la prime à la conversion. »",["Reformulation + compensation","Boomerang","Report"]],
+ ["« Je n’ai pas le temps de vous recevoir. »","Boomerang (retournement)","« C’est justement pour vous faire gagner du temps : 15 minutes suffisent pour voir comment réduire vos coûts d’irrigation. »",["Boomerang (retournement)","Témoignage","Questionnement"]],
+ ["« J’ai déjà un fournisseur. »","Questionnement","« Très bien. Qu’est-ce qui vous plaît chez lui ? Proposez-vous déjà une bière sans alcool haut de gamme ? »",["Questionnement","Fractionnement du prix","Report"]],
+ ["« L’autonomie de 75 km, ce n’est pas assez. »","Reformulation + preuve","« Vous craignez de manquer d’autonomie. 75 km couvrent largement les trajets quotidiens, et la recharge se fait en 3 h sur une prise classique. »",["Reformulation + preuve","Boomerang","Oui, mais… (compensation)"]],
+ ["« Je ne connais pas votre marque. »","Témoignage / référence","« Nous travaillons déjà avec Siemens et La Ferme Angevine. Je peux vous mettre en relation avec un client proche de chez vous. »",["Témoignage / référence","Fractionnement du prix","Report"]],
+ ["« 8 € par mois, c’est encore une dépense de plus. »","Fractionnement du prix","« Cela représente moins de 27 centimes par jour pour être couvert en cas de blessure. »",["Fractionnement du prix","Questionnement","Boomerang"]],
+ ["« Je dois en parler à mon associé. »","Report (différer) + engagement","« Bien sûr. Je vous envoie la documentation aujourd’hui et je vous rappelle jeudi pour en discuter ensemble ? »",["Report (différer) + engagement","Compensation","Témoignage / référence"]],
+ ["« Votre parfum, je ne peux pas le sentir sur Internet. »","Oui, mais… (compensation)","« C’est vrai, et c’est pour cela que le kit contient des testeurs et 100 touches à sentir pour vos clients. »",["Oui, mais… (compensation)","Questionnement","Fractionnement du prix"]]
+];
+const SWOT = [
+ ["AIRSUB DRONE est certifiée par la DGAC.","Force"],["L’entreprise ne compte que 5 salariés.","Faiblesse"],["Les agriculteurs cherchent à réduire leurs coûts de production.","Opportunité"],
+ ["La CNIL encadre l’usage des drones équipés de caméras.","Menace"],["KRONENBOURG détient près de 60 % du marché de la bière sans alcool.","Menace"],["Le CA des bières sans alcool a progressé de 16,2 % en 2022.","Opportunité"],
+ ["PYETA est le seul fabricant à proposer des pieds pour tables de 4 m.","Force"],["Les prestations peuvent être annulées selon la météo.","Faiblesse"],["60 % des Françaises achètent des cosmétiques bio.","Opportunité"],
+ ["Le prix freine plus de 60 % des consommatrices de cosmétiques bio.","Menace"],["VIREVOLTE est une marque encore méconnue.","Faiblesse"],["Un décret rend l’assurance obligatoire pour les trottinettes électriques.","Opportunité"],
+ ["Les volumes de bière sans alcool ont baissé de 11,8 %.","Menace"],["Le showroom E-DRAG’ON dispose d’une piste d’essai de 2 km.","Force"],["L’inflation rend les entreprises plus attentives à leurs dépenses.","Menace"],["Les parfums VIREVOLTE sont certifiés Cosmos Natural.","Force"]
+];
+const FICHE = [
+ ["Raison sociale / enseigne",1],["Nom et prénom du contact",1],["Fonction du contact",1],["Téléphone et e-mail",1],["Adresse / ville",1],["Secteur d’activité",1],
+ ["Fournisseur actuel",1],["Produits ou services qui intéressent",1],["Niveau d’intérêt (chaud, tiède, froid)",1],["Suite à donner et date de relance",1],["Consentement RGPD",1],["Nom du commercial et date du contact",1],
+ ["Religion du contact",0],["Numéro de sécurité sociale",0],["Opinions politiques",0],["Photo d’identité",0],["Situation médicale",0],["Mot de passe de son site",0]
+];
+
+$("#at-nav").addEventListener("click", e => { if (e.target.closest("[data-athome]")) { atHome(); return; } const b = e.target.closest("[data-at]"); if (b) openAtelier(b.dataset.at); });
+document.querySelector('nav.tabs a[data-tab="ateliers"]')?.addEventListener("click", () => setTimeout(atHome, 0));
+function openAtelier(k, sub){
+  const F = {build:atBuild, annexe:atAnnexe, planif:atPlanif, plan:atPlan, fiche:atFiche, soncas:atSoncas, obj:atObj, rs:atRS, maquette:atMaquette, sms:atSms, enquete:atEnquete, swot:atSwot};
+  if (!F[k]) return atHome(); atBar(k); F[k](sub);
+  if (location.hash === "#ateliers") document.querySelector('section[data-view="ateliers"]')?.scrollIntoView({block:"start"});
+}
+
+function atPlan(kind = "rdv"){
+  const P = PLAN[kind]; let order = shuffle(P.steps.map((_,i)=>i));
+  const box = $("#atelier");
+  const draw = (checked) => {
+    box.innerHTML = `<div class="row" style="justify-content:space-between"><h2 class="h2">Remets le plan d’appel dans l’ordre</h2>
+      <div class="seg" role="group"><button data-k="rdv" aria-pressed="${kind==="rdv"}">Prise de RDV</button><button data-k="relance" aria-pressed="${kind==="relance"}">Relance</button></div></div>
+      <p class="muted">${P.titre}. Utilise les flèches pour déplacer les étapes, puis vérifie.</p>
+      <ol class="order-list">${order.map((idx,pos) => `<li class="${checked ? (idx===pos?"good":"bad") : ""}"><span>${esc(P.steps[idx][0])}${checked?`<small>${esc(P.steps[idx][1])}</small>`:""}</span><button class="mv" data-up="${pos}" aria-label="Monter">↑</button><button class="mv" data-down="${pos}" aria-label="Descendre">↓</button></li>`).join("")}</ol>
+      <div class="row"><button class="btn primary" data-go="check">Vérifier</button><button class="btn" data-go="sol">Voir l’ordre attendu</button><button class="btn ghost" data-go="new">Mélanger</button></div>
+      ${checked ? `<p class="feedback ${order.every((v,i)=>v===i)?"ok":"ko"}">${order.filter((v,i)=>v===i).length} / ${order.length} étapes bien placées.</p>` : ""}`;
+  };
+  draw(false);
+  box.onclick = e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.k) { atPlan(b.dataset.k); return; }
+    if (b.dataset.up) { const i = +b.dataset.up; if (i>0) [order[i-1],order[i]] = [order[i],order[i-1]]; draw(false); return; }
+    if (b.dataset.down) { const i = +b.dataset.down; if (i<order.length-1) [order[i+1],order[i]] = [order[i],order[i+1]]; draw(false); return; }
+    if (b.dataset.go==="check") draw(true);
+    if (b.dataset.go==="sol") { order = P.steps.map((_,i)=>i); draw(true); }
+    if (b.dataset.go==="new") { order = shuffle(order); draw(false); } };
+}
+function quizEngine(title, intro, items, render){
+  let list = shuffle(items), i = 0, score = 0; const box = $("#atelier");
+  const draw = () => {
+    if (i >= list.length) { box.innerHTML = `<h2 class="h2">${title}</h2><p class="feedback ${score>=list.length*.7?"ok":"ko"}">Score : ${score} / ${list.length}</p><div class="row"><button class="btn primary" data-go="again">Recommencer</button></div>`; box.onclick = e => { if (e.target.closest("[data-go]")) quizEngine(title,intro,items,render); }; return; }
+    const it = list[i]; const r = render(it);
+    box.innerHTML = `<div class="row" style="justify-content:space-between"><h2 class="h2">${title}</h2><span class="muted mono">${i+1} / ${list.length} · ${score} pt</span></div><p class="muted">${intro}</p>
+      <div class="quiz-card"><p class="quote">${esc(r.prompt)}</p><div class="opts">${r.opts.map(o => `<button data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div><div data-ex hidden></div></div>`;
+    box.onclick = e => { const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.o !== undefined && !box.dataset.answered) { box.dataset.answered = "1"; const ok = b.dataset.o === r.good; if (ok) score++;
+        $$(".opts button", box).forEach(x => { if (x.dataset.o === r.good) x.classList.add("good"); else if (x === b) x.classList.add("bad"); });
+        const ex = $("[data-ex]", box); ex.hidden = false; ex.innerHTML = `<div class="explain">${r.explain}</div><div class="row" style="margin-top:10px"><button class="btn primary" data-go="next">Suivant →</button></div>`; }
+      if (b.dataset.go === "next") { delete box.dataset.answered; i++; draw(); } };
+  };
+  delete box.dataset.answered; draw();
+}
+const atSoncas = () => quizEngine("Quel mobile d’achat ?", "SONCASE : Sécurité, Orgueil, Nouveauté, Confort, Argent, Sympathie, Environnement. Quel mobile cet argument active-t-il ?", SONCAS,
+  it => ({prompt: it[0], opts: ["Sécurité","Orgueil","Nouveauté","Confort","Argent","Sympathie","Environnement"], good: it[1], explain: esc(it[2]) + " Structure ton argument en CAP : Caractéristique → Avantage pour le client → Preuve."}));
+const atObj = () => quizEngine("Traiter l’objection", "Choisis la technique la plus adaptée. Lis ensuite la réponse modèle.", OBJ,
+  it => ({prompt: it[0], opts: shuffle(it[3]), good: it[1], explain: `<b>Réponse modèle :</b> ${esc(it[2])}`}));
+const atSwot = () => quizEngine("Force, faiblesse, opportunité ou menace ?", "Forces et faiblesses = interne à l’entreprise. Opportunités et menaces = externe (marché, concurrence, lois, économie).", SWOT,
+  it => ({prompt: it[0], opts: ["Force","Faiblesse","Opportunité","Menace"], good: it[1], explain: (it[1]==="Force"||it[1]==="Faiblesse") ? "Cela dépend de l’entreprise elle-même : c’est <b>interne</b>." : "Cela vient de l’environnement, l’entreprise ne le contrôle pas : c’est <b>externe</b>."}));
+
+function atSms(){
+  const box = $("#atelier");
+  const sample = "AXA Sartrouville : votre ado roule en TROTTINETTE ? Assurance OBLIGATOIRE dès 8€/mois, vol + blessures inclus. Infos : axa.fr/edpm STOP 36xxx";
+  box.innerHTML = `<h2 class="h2">Rédige un SMS marketing</h2>
+   <p class="muted">Contexte AXA (sujet 6) : proposer l’assurance EDPM aux clients de l’agence. 160 caractères maximum, mention STOP comprise.</p>
+   <div class="row" style="align-items:flex-start;gap:24px">
+     <div style="display:grid;gap:8px;flex:1;min-width:260px">
+       <label for="sms-in" class="muted">Ton SMS</label>
+       <textarea id="sms-in" class="copy" style="min-height:120px" maxlength="320"></textarea>
+       <div class="row"><span class="mono" id="sms-count">0 / 160</span><button class="btn sm" id="sms-ex">Voir un exemple</button></div>
+       <ul class="checks" id="sms-checks"></ul>
+     </div>
+     <div class="sms-phone" aria-label="Aperçu"><span class="muted" style="font-size:.78rem">Aperçu</span><div class="bubble" id="sms-prev"></div></div>
+   </div>`;
+  const inp = $("#sms-in");
+  const crit = [
+    ["≤ 160 caractères", t => t.length > 0 && t.length <= 160],
+    ["Émetteur identifiable au début (AXA…)", t => /^\s*\S*axa/i.test(t)],
+    ["Au moins un mot-clé en MAJUSCULES", t => /\b[A-ZÀÂÉÈÊÎÔÛÇ]{4,}\b/.test(t.replace(/\bAXA\b|\bSTOP\b|\bEDPM\b/g,""))],
+    ["Une offre chiffrée (€ ou %)", t => /\d+\s*(€|%|euros?)/i.test(t)],
+    ["Un lien ou un contact", t => /(https?:\/\/|www\.|\.[a-z]{2,}\/|\.fr|\.com|\b0\d[\s.]?\d{2})/i.test(t)],
+    ["Mention STOP + numéro", t => /STOP\s*\d|STOP\s*\w*\d/.test(t)]
+  ];
+  const upd = () => { const t = inp.value; $("#sms-count").textContent = `${t.length} / 160`; $("#sms-count").style.color = t.length > 160 ? "var(--red)" : ""; $("#sms-prev").textContent = t || "…";
+    $("#sms-checks").innerHTML = crit.map(([l,f]) => `<li class="${f(t)?"on":""}">${l}</li>`).join(""); };
+  inp.oninput = upd; $("#sms-ex").onclick = () => { inp.value = sample; upd(); }; box.onclick = null; upd();
+}
+function atFiche(){
+  const box = $("#atelier"); const items = shuffle(FICHE); const sel = {};
+  const draw = (checked) => {
+    box.innerHTML = `<h2 class="h2">Compose une fiche contact</h2><p class="muted">Sélectionne les rubriques à faire figurer sur une fiche contact de salon. Attention au RGPD : on ne collecte que des données utiles et non sensibles.</p>
+     <div class="fc-grid">${items.map((it,i) => { let cls = ""; if (checked) cls = it[1] ? (sel[i] ? "good" : "miss") : (sel[i] ? "bad" : ""); return `<label class="fc-field ${cls}"><input type="checkbox" data-i="${i}" ${sel[i]?"checked":""}><span>${esc(it[0])}</span></label>`; }).join("")}</div>
+     <div class="row"><button class="btn primary" data-go="check">Vérifier</button><button class="btn ghost" data-go="reset">Recommencer</button></div>
+     ${checked ? (() => { const good = items.filter((it,i)=>it[1]&&sel[i]).length, need = items.filter(it=>it[1]).length, bad = items.filter((it,i)=>!it[1]&&sel[i]).length;
+       return `<p class="feedback ${good===need&&!bad?"ok":"ko"}">${good} / ${need} rubriques utiles · ${bad} donnée(s) interdite(s) ou inutile(s).</p><p class="explain">Une fiche contact s’organise en 4 blocs : <b>identification</b> (qui ?), <b>qualification</b> (son activité, son fournisseur), <b>besoins et intérêt</b>, <b>suite à donner</b> (relance, RDV, devis) + consentement RGPD. En orange : rubriques oubliées.</p>`; })() : ""}`;
+  };
+  draw(false);
+  box.onchange = e => { if (e.target.dataset.i !== undefined) sel[e.target.dataset.i] = e.target.checked; };
+  box.onclick = e => { const b = e.target.closest("[data-go]"); if (!b) return; if (b.dataset.go==="check") draw(true); else { Object.keys(sel).forEach(k=>delete sel[k]); draw(false); } };
+}
+
+/* ===================== Notions ===================== */
+const NOTIONS = [
+ ["Prospection","Prospection","Recherche de nouveaux clients (prospects) pour développer le chiffre d’affaires et compenser la perte de clients."],
+ ["Suspect / prospect","Prospection","Suspect : personne qui pourrait être intéressée. Prospect : personne ciblée et qualifiée, susceptible de devenir cliente."],
+ ["Fichier prospects","Prospection","Base de données de contacts à démarcher (identité, coordonnées, critères de qualification)."],
+ ["Qualifier un fichier","Prospection","Compléter et mettre à jour les informations des contacts pour repérer les plus intéressants."],
+ ["Ciblage / segmentation","Prospection","Découper le marché en groupes homogènes et choisir ceux à prospecter en priorité."],
+ ["Zone de chalandise","Prospection","Zone géographique d’où vient l’essentiel de la clientèle d’un point de vente."],
+ ["Phoning","Prospection","Prospection par téléphone, souvent pour obtenir un rendez-vous."],
+ ["Plan d’appel","Prospection","Trame structurée d’un appel : présentation, accroche, découverte, proposition, objections, conclusion."],
+ ["Barrage secrétaire","Prospection","Filtrage par un(e) assistant(e) avant d’atteindre le décideur."],
+ ["E-mailing / mailing","Prospection","Envoi de messages commerciaux par courriel / par courrier à une liste de contacts."],
+ ["SMS marketing","Prospection","Message court (160 caractères max) à fort taux de lecture ; doit contenir l’émetteur et la mention STOP."],
+ ["Street marketing","Prospection","Action commerciale dans la rue ou un lieu de passage pour aller au contact des prospects."],
+ ["Prescripteur","Prospection","Personne qui influence l’achat sans acheter elle-même (architecte, influenceur, ado pour ses parents…)."],
+ ["Recommandation / parrainage","Prospection","Un client satisfait fournit des contacts ou recommande l’entreprise."],
+ ["B2B / B2C","Marché","B2B : vente entre entreprises. B2C : vente d’une entreprise à des particuliers."],
+ ["CHR","Marché","Cafés, Hôtels, Restaurants : circuit de distribution hors domicile."],
+ ["GMS","Marché","Grandes et Moyennes Surfaces (hypermarchés, supermarchés)."],
+ ["Veille commerciale","Marché","Surveillance régulière du marché, des concurrents et des tendances."],
+ ["Diagnostic SWOT","Marché","Forces / faiblesses (interne) et opportunités / menaces (externe) d’une entreprise."],
+ ["Avantage concurrentiel","Marché","Ce qui distingue l’entreprise de ses concurrents aux yeux du client."],
+ ["Premiumisation","Marché","Montée en gamme d’un produit ou d’un marché (prix et qualité plus élevés)."],
+ ["Omnicanal","Marché","Le client passe librement d’un canal à l’autre (site, magasin, réseaux) dans un même parcours."],
+ ["Marketplace","Marché","Place de marché en ligne qui met en relation vendeurs et acheteurs (ex. ANKORSTORE en B2B)."],
+ ["Drive-to-store","Marché","Utiliser le digital pour générer des visites en magasin."],
+ ["SIC","Outils","Système d’Information Commercial : ensemble des données clients, prospects et ventes exploitées par l’entreprise."],
+ ["CRM","Outils","Logiciel de gestion de la relation client qui centralise contacts, historiques et relances."],
+ ["RGPD","Outils","Règlement sur la protection des données : consentement, données utiles uniquement, droit d’accès et de suppression."],
+ ["Fiche contact","Outils","Document de collecte : identification, qualification, besoins, suite à donner."],
+ ["Tableau de bord","Outils","Ensemble d’indicateurs pour suivre l’atteinte des objectifs et réagir."],
+ ["Taux de réalisation (R/O)","Indicateurs","Résultat ÷ objectif × 100."],
+ ["Taux de transformation","Indicateurs","Part des contacts qui passent à l’étape suivante (RDV, vente) : étape ÷ étape précédente × 100."],
+ ["Taux d’engagement","Indicateurs","Interactions (likes, commentaires, partages) ÷ vues ou abonnés × 100."],
+ ["Rentabilité d’une opération","Indicateurs","Marge générée (CA × taux de marque) − coûts de l’opération."],
+ ["Taux de marque","Indicateurs","Marge ÷ prix de vente HT × 100."],
+ ["Taux de marge","Indicateurs","Marge ÷ prix d’achat HT × 100."],
+ ["Coefficient multiplicateur","Indicateurs","Nombre par lequel on multiplie le PA HT pour obtenir le PV TTC."],
+ ["Objectif quantitatif / qualitatif","Indicateurs","Quantitatif : chiffré (contacts, RDV, CA). Qualitatif : image, notoriété, informations collectées."],
+ ["SONCASE","Vente","Mobiles d’achat : Sécurité, Orgueil, Nouveauté, Confort, Argent, Sympathie, Environnement."],
+ ["Méthode CAP","Vente","Argument structuré : Caractéristique → Avantage pour le client → Preuve."],
+ ["Objection","Vente","Frein exprimé par le client ; se traite par reformulation puis réponse adaptée."],
+ ["Pitch","Vente","Présentation courte et percutante : qui on est, le problème du client, la solution, l’appel à l’action."],
+ ["Argumentaire","Vente","Ensemble d’arguments préparés pour convaincre une cible."],
+ ["Salon professionnel","Événement","Manifestation réservée aux professionnels pour rencontrer prospects et clients, vendre et gagner en notoriété."],
+ ["Goodies","Événement","Objets publicitaires offerts aux visiteurs (stylos, tote bags…)."],
+ ["PLV","Événement","Publicité sur le Lieu de Vente : présentoirs, kakémonos, testeurs…"],
+ ["Facteurs d’ambiance","Événement","Éléments sensoriels (vue, ouïe, odorat, goût, toucher) qui rendent un lieu attractif."],
+ ["Théâtralisation","Événement","Mise en scène des produits pour créer une émotion et attirer l’attention."],
+ ["Relance","Événement","Nouveau contact après un premier échange (courriel, salon) pour transformer l’intérêt en RDV ou en vente."]
+];
+let FC_FILTER = "Toutes";
+function drawCards(){
+  const cats = ["Toutes", ...new Set(NOTIONS.map(n => n[1])), "À revoir"];
+  $("#fc-filter").innerHTML = cats.map(c => `<button class="chip" data-c="${c}" aria-pressed="${c===FC_FILTER}">${c}</button>`).join("");
+  const list = NOTIONS.filter(n => FC_FILTER==="Toutes" || n[1]===FC_FILTER || (FC_FILTER==="À revoir" && !STATE.known[n[0]]));
+  $("#fc-count").textContent = `${Object.values(STATE.known).filter(Boolean).length} / ${NOTIONS.length} sues`;
+  $("#cards").innerHTML = list.map(n => `<div class="flash" role="button" tabindex="0" data-n="${esc(n[0])}" aria-label="Carte ${esc(n[0])}"><div class="in">
+    <div class="face"><span class="eyebrow">${esc(n[1])}</span><h3>${esc(n[0])}</h3><span class="${STATE.known[n[0]]?"known":"muted"}" style="font-size:.78rem">${STATE.known[n[0]]?"✓ Je sais":"Clique pour retourner"}</span></div>
+    <div class="face back"><p>${esc(n[2])}</p><div class="row"><button class="btn sm" data-k="${esc(n[0])}">${STATE.known[n[0]]?"Remettre à revoir":"Je sais"}</button></div></div></div></div>`).join("") || `<p class="muted">Bravo, tout est su dans cette catégorie.</p>`;
+}
+$("#fc-filter").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (b) { FC_FILTER = b.dataset.c; drawCards(); } });
+$("#cards").addEventListener("click", e => { const k = e.target.closest("[data-k]"); if (k) { e.stopPropagation(); STATE.known[k.dataset.k] = !STATE.known[k.dataset.k]; save(); drawCards(); return; } const c = e.target.closest(".flash"); if (c) c.classList.toggle("flip"); });
+$("#cards").addEventListener("keydown", e => { if ((e.key==="Enter"||e.key===" ") && e.target.matches(".flash")) { e.preventDefault(); e.target.classList.toggle("flip"); } });
+
+/* ===================== Démarrage ===================== */
+$("#astuces").innerHTML = ASTUCES.map(([t,d]) => `<div><b>${esc(t)}</b><span>${d}</span></div>`).join("");
+if (typeof PROF_PW !== "undefined") $("#prof-pw").innerHTML = `<details class="panel" open><summary><b>🔑 Mots de passe des corrigés (version professeur)</b></summary><p class="muted" style="font-size:.88rem">Donne un mot de passe aux élèves quand tu veux ouvrir le corrigé d’un sujet. Les tirets, majuscules et accents ne comptent pas. Cette liste n’existe que dans ta version.</p><table class="pwtable">${PROF_PW.map(([n,p]) => `<tr><td>${esc(n)}</td><td>${esc(p)}</td></tr>`).join("")}</table></details>`;
+renderGrid(); drawCards(); atHome(); drawMemos(); route();
+(async () => { let n = 0; for (const s of SUJETS) if (s.locked && STATE.keys[s.id]) { if (await tryUnlock(s, STATE.keys[s.id])) n++; else delete STATE.keys[s.id]; } if (n) { save(); route(); } })();
+
+</script>
+
+</body></html>
